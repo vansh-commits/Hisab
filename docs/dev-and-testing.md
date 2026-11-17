@@ -30,7 +30,7 @@ Both Vite dev servers proxy `/api` to `http://localhost:8080`, which mirrors the
 | Var | Dev value | Notes |
 |---|---|---|
 | `APP_ENV` | `dev` | `dev` enables `/api/dev/login` and the console email driver. Refused if the DB host isn't local. |
-| `PORT` | `8080` | Railway sets this |
+| `PORT` | `8080` | Vercel sets this |
 | `DATABASE_URL` | `postgres://postgres@localhost:5433/hisab?sslmode=disable` | Neon **pooled** URL in prod |
 | `DATABASE_URL_DIRECT` | same as above | Neon **direct** URL in prod (migrations) |
 | `TEST_DATABASE_URL` | `postgres://postgres@localhost:5433/hisab_test?sslmode=disable` | integration tests |
@@ -53,17 +53,17 @@ Both Vite dev servers proxy `/api` to `http://localhost:8080`, which mirrors the
 
 **Mailer (project `hisab-mailer`, signed in as the new Google account):**
 1. Enable the Gmail API. Consent screen: External, scope `https://www.googleapis.com/auth/gmail.send`. **Publishing status: "In production"** (it stays unverified, which is fine for your own account). Testing-mode refresh tokens expire after 7 days.
-2. Create an OAuth client "Desktop app".
+2. Create an OAuth client "Web application" with the redirect URI `https://developers.google.com/oauthplayground` (the Playground needs it).
 3. Get a refresh token once. The simplest way is the OAuth 2.0 Playground (⚙ → use your own client ID/secret → scope `gmail.send` → authorize as the mailer account → exchange → copy the refresh token).
-4. Put the three values in Railway env vars.
+4. Put the three values in the `hisab-api` Vercel project's env vars.
 5. **If mail stops** (token revoked after a password change or security event): repeat step 3. Admin shows `email_sent: false` with a Resend button meanwhile.
 
 The Gmail driver is about 40 lines: refresh the access token via `x/oauth2`, build an RFC 822 message, base64url it, and `POST https://gmail.googleapis.com/gmail/v1/users/me/messages/send`.
 
 ## 5. Deploy (no pipeline needed at this size)
-- **Railway:** New project → Deploy from GitHub repo, root directory `services/api`, build `go build -o app ./cmd/api`, start `./app`, healthcheck path `/healthz`, region Singapore. Settings → Networking → Generate domain (`hisab-api.up.railway.app`). Set a usage alert. Auto-deploys on push to `main`. Migrations run on boot.
-- **Vercel:** two projects from the same repo (root `apps/web` and root `apps/admin`), each with a `vercel.json` rewrite of `/api/:path*` → `https://hisab-api.up.railway.app/api/:path*`.
-- **Neon:** project in Singapore. Copy the pooled and direct URLs into Railway. Set max compute to 0.25–0.5 CU.
+- **Vercel API project `hisab-api`:** import the repo, root directory `services/api`, framework preset **Go** (`services/api/vercel.json` sets `"framework": "go"`). It builds `cmd/api/main.go` and listens on `PORT`. Settings → Functions → region **Singapore (sin1)**, next to Neon. Migrations run on each cold start under a Postgres advisory lock.
+- **Vercel frontends:** two more projects from the same repo (root `apps/web` → `hisab`, root `apps/admin` → `hisab-admin`), each with a `vercel.json` rewrite of `/api/:path*` → `https://hisab-api.vercel.app/api/:path*`.
+- **Neon:** project in Singapore. Copy the pooled and direct URLs into the `hisab-api` project. Set max compute to 0.25–0.5 CU.
 - **Backups (`.github/workflows/backup.yml`):**
   - Nightly at 02:00 IST: `pg_dump --format=custom $NEON_DIRECT_URL | age -r $AGE_PUBLIC_KEY > hisab-YYYY-MM-DD.dump.age`, then `gh release create` in the private repo `hisab-backups`, then prune to 30 daily + 12 monthly.
   - The age **private** key lives only on your machine and in a password manager.

@@ -11,8 +11,8 @@
 | Migrations | `pressly/goose` v3, SQL files embedded via `embed.FS`, **run on boot** | Single instance, so there's no race. |
 | Auth | `coreos/go-oidc/v3` + `golang.org/x/oauth2` | See §5. |
 | PDF | `github.com/go-pdf/fpdf` (pinned) + embedded Noto Sans TTF | See §6. |
-| Email | `EmailSender` interface with `gmail` (HTTPS Gmail API) and `console` drivers | Railway blocks SMTP below the Pro plan. |
-| Logging | `log/slog` (JSON in prod) | Railway captures stdout. |
+| Email | `EmailSender` interface with `gmail` (HTTPS Gmail API) and `console` drivers | No SMTP from serverless, and no domain. |
+| Logging | `log/slog` (JSON in prod) | Vercel function logs capture stdout. |
 | Config | `os.Getenv` into one struct, fail fast | No config library. |
 | Tests | stdlib `testing` + real local Postgres | No mocks, no testcontainers. |
 
@@ -33,14 +33,14 @@
 |---|---|---|---|
 | `apps/web` | **Vercel Hobby** → `hisab.vercel.app` | ~100 GB bandwidth/month | **Hobby = non-commercial only.** Move to Cloudflare Pages or Netlify before charging customers (static build, so only the rewrite config changes). |
 | `apps/admin` | **Vercel Hobby** → `hisab-admin.vercel.app` | same | Separate project = separate origin = separate cookies. |
-| Go API | **Railway**, Singapore (asia-southeast), Go auto-detected (Railpack) | Small monthly usage credit (trial, then free/Hobby tier); always on, no sleep; ephemeral disk; no SMTP | Root `services/api`. Build: `go build -o app ./cmd/api`. Start: `./app`. No Dockerfile. A ~20–30 MB Go binary should stay within the credit, measured in Phase 0. |
+| Go API | **Vercel**, third project `hisab-api`, Go framework preset (Beta), function region `sin1` | Hobby function limits; scales to zero (cold starts); no disk | Root `services/api`, `vercel.json` `{"framework":"go"}`. Vercel builds `cmd/api/main.go`, and the server listens on `PORT`. Migrations run on cold start under an advisory lock. |
 | Postgres | **Neon Free**, Singapore | 1 GB storage, 100 CU-hours/month per project, scale-to-zero after 5 min | Easy data access: console SQL editor and table browser, any Postgres GUI, `pg_dump`, branches. Never paused or deleted. |
 | Email | **Gmail API** (new Google account) | ~500 recipients/day | Separate GCP project. Consent screen in Production status so the refresh token doesn't expire after 7 days. |
 | Backups | **GitHub Actions** cron → private repo `hisab-backups` (release assets) | Actions minutes: unlimited on public repos, 2,000/month private. One ~1 min job per night. | Keeps 30 daily + 12 monthly. |
 
 **Rejected:**
 - Render: sleeps after 15 min (~1 min wake). Render Postgres is deleted after 30 days.
-- Railway Postgres: would use up the usage credit.
+- Railway: credit-based and not free long-term.
 - Supabase: pauses after 7 days idle, 500 MB.
 - Cloud Run: needs a card.
 - Resend/Brevo: need a domain for real deliverability.
@@ -57,11 +57,11 @@ hisab/
 │  │  │  ├─ components/         # Button, Field, MoneyField, WeightField, Dialog, ...
 │  │  │  └─ root.tsx
 │  │  ├─ public/                # og image, robots.txt, sitemap.xml
-│  │  ├─ vercel.json            # rewrite /api/* → Railway
+│  │  ├─ vercel.json            # rewrite /api/* → hisab-api.vercel.app
 │  │  └─ react-router.config.ts
 │  └─ admin/
 │     ├─ src/
-│     └─ vercel.json            # rewrite /api/* → Railway
+│     └─ vercel.json            # rewrite /api/* → hisab-api.vercel.app
 ├─ services/
 │  └─ api/
 │     ├─ cmd/api/main.go        # config, pool, migrate, mux, serve
@@ -104,7 +104,7 @@ flowchart LR
     ADM[hisab-admin.vercel.app<br/>static SPA<br/>rewrite /api/*]
   end
 
-  API[Go API on Railway<br/>Singapore<br/>auth / tenant / admin routes<br/>tax engine + PDF]
+  API[Go API on Vercel<br/>Singapore<br/>auth / tenant / admin routes<br/>tax engine + PDF]
   NEON[(Neon Postgres<br/>Singapore)]
   G[Google OIDC]
   GM[Gmail API]
@@ -128,14 +128,14 @@ flowchart LR
 ## 5. Auth design
 
 ### Cookie / domain solution
-- **Problem:** `*.vercel.app` and `*.up.railway.app` are different sites, so API cookies would be third-party and blocked.
+- **Problem:** `vercel.app` is on the Public Suffix List, so `hisab.vercel.app` and `hisab-api.vercel.app` are different sites, and API cookies would be third-party and blocked.
 - **Solution:** each Vercel project has an external rewrite, so the browser only ever talks to its own origin:
   ```json
-  { "rewrites": [ { "source": "/api/:path*", "destination": "https://hisab-api.up.railway.app/api/:path*" } ] }
+  { "rewrites": [ { "source": "/api/:path*", "destination": "https://hisab-api.vercel.app/api/:path*" } ] }
   ```
   For `apps/web`, the SPA fallback rewrite comes after this one.
 - Cookies are **host-only** with the `__Host-` prefix (`Secure; Path=/; HttpOnly; SameSite=Lax`, no `Domain`): `__Host-sid` on the web app and `__Host-asid` on admin. Neither can reach the other.
-- Hitting `up.railway.app` directly carries no cookies, so it's useless to an attacker. No proxy secret is needed.
+- Hitting `hisab-api.vercel.app` directly carries no cookies, so it's useless to an attacker. No proxy secret is needed.
 - Local dev mirrors this with the Vite dev server `proxy: { '/api': 'http://localhost:8080' }`.
 - **Phase 0 checks:** `Set-Cookie` survives the rewrite, and the latency added by the rewrite. The UI retries once on a 502/504.
 
@@ -167,7 +167,7 @@ sequenceDiagram
   autonumber
   participant B as Browser (hisab.vercel.app)
   participant V as Vercel rewrite (/api/*)
-  participant API as Go API (Railway)
+  participant API as Go API (Vercel)
   participant G as Google
   participant DB as Neon
 
@@ -207,7 +207,7 @@ sequenceDiagram
 
 - **Why:**
   - English only.
-  - Little memory: a few MB per render, well inside Railway's limits.
+  - Little memory: a few MB per render, well inside Vercel's function memory.
   - One language, so the same Go code does tax, words, and formatting.
   - No client bundle cost on low-end phones.
   - No storage used.

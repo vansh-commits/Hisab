@@ -24,7 +24,7 @@
 |---|---|---|
 | 1 | "Ask the amounts" | Opening balances per customer, default making charge and GST rate, **plus a daily metal-rate board** (24K/22K/18K/silver) that pre-fills line rates |
 | 2 | Domain | **None.** The app runs on `*.vercel.app`. A new Google account sends email via the Gmail API. |
-| 3 | Hosting | **Vercel** (frontends), **Railway** (Go API, always on), **Neon** free (Postgres: easy data access, never paused or deleted) |
+| 3 | Hosting | **Vercel** for everything: 2 static frontends + the Go API as a third project (Go preset), **Neon** free (Postgres: easy data access, never paused or deleted) |
 | 4 | Old gold exchange | **In MVP.** Purchase vouchers, deducted on the sale bill. |
 | 5 | Composition dealers | Bill of Supply, no tax |
 | 6 | Place of supply | Your rule, verbatim (see `tax-engine.md` §3), overridable per bill. Confirmed by s.10(1)(ca) IGST Act + Circular 209/03/2024. |
@@ -50,8 +50,8 @@
 | Go HTTP | stdlib `net/http` ServeMux + Go 1.25 `http.CrossOriginProtection` | No router dependency. CSRF from the stdlib. |
 | DB access | pgx v5 + sqlc. **goose** migrations, embedded, run on API boot | Type-safe SQL. Single instance, so migrating on boot is safe. |
 | Auth | Google OIDC (go-oidc + x/oauth2, PKCE, nonce, `email_verified`), Postgres sessions, `__Host-` cookies | As requested. Providers are pluggable for phone OTP later. |
-| Cookies | **Vercel external rewrite** `/api/*` → Railway. The browser is same-origin, so cookies are first-party. | Solves the third-party cookie problem without a domain. |
-| Email | `EmailSender` with two drivers: **Gmail API** (HTTPS) and **console** | Railway blocks SMTP below Pro, and there's no domain for Resend/Brevo. |
+| Cookies | **Vercel external rewrite** `/api/*` → `hisab-api.vercel.app`. The browser is same-origin, so cookies are first-party. | Solves the third-party cookie problem without a domain. |
+| Email | `EmailSender` with two drivers: **Gmail API** (HTTPS) and **console** | Serverless has no SMTP worth relying on, and there's no domain for Resend/Brevo. |
 | Tax engine | **Go only.** The UI calls `POST /api/invoices/compute` (debounced) for live totals. | One implementation, so there's nothing to keep in sync. |
 | PDF | **Server-side Go (`go-pdf/fpdf`)**, built from the invoice snapshot on every request, never stored | Deterministic, light on memory, ₹ via embedded Noto Sans, zero storage. |
 | Money / weight / rates | `int64` paise, `int64` milligrams, GST rate in milli-percent (3% = 3000) | No floats. 0.125% (half of 0.25%) is representable. |
@@ -65,14 +65,14 @@
 
 ## 3. Roadmap
 
-Every phase ends **deployed** (Vercel + Railway + Neon), not just working locally.
+Every phase ends **deployed** (Vercel + Neon), not just working locally.
 
 ### Phase 0: Skeleton and risk checks (≈4 days)
 - Repo layout, Makefile, local Postgres, goose + sqlc, CI (Go tests with a Postgres service, typecheck).
-- Deploy a hello API to Railway, both frontends to Vercel with rewrites, and Neon.
+- Deploy a hello API to Vercel (Go preset), both frontends to Vercel with rewrites, and Neon.
 - **Verify:**
   1. `Set-Cookie` passes through the Vercel rewrite and comes back on the next request.
-  2. Latency through the rewrite, and Railway's real monthly usage cost after 2–3 days.
+  2. Cold-start latency through the rewrite (Go function + Neon wake), and Vercel function usage after 2–3 days.
   3. A Gmail API send works with the stored refresh token.
   4. fpdf renders ₹ and `7,37,864.00` correctly. ✅ 2026-11-17: Noto Sans via `AddUTF8FontFromBytes`, text extractable, byte-identical re-render.
 - **Done when:** all four are checked and written into this doc, and CI is green.
@@ -136,7 +136,7 @@ Every phase ends **deployed** (Vercel + Railway + Neon), not just working locall
 |---|---|---|
 | **Data loss** (free DB, no SLA) | Fatal: these are tax records | Nightly encrypted `pg_dump` to a private GitHub repo (30 daily + 12 monthly), monthly restore drill, Neon's own restore window, admin "export all" CSV. |
 | **Vercel Hobby is "non-commercial use only"** | Project could be paused once you charge money | Frontends are static and the rewrite is a 3-line config, so the move to Cloudflare Pages or Netlify takes about an hour. Do it before the first paid customer. |
-| **Railway usage credit runs out** | API stops for the rest of the month | Tiny Go binary, DB on Neon (not Railway). Usage is checked in Phase 0 and an alert is set in Railway. Hobby plan (~$5/month) once there are paying customers. Fallbacks: Render free (with keep-warm) or Koyeb, since it's a plain Go binary with no code change. |
+| **Vercel Go runtime is Beta; Hobby is non-commercial; serverless cold starts** | Breakage, a forced plan change, or slow first request | Plain `net/http` server with no Vercel-specific code, so it moves to Render/Railway/Koyeb unchanged. Function region `sin1` next to Neon. Pro plan once there are paying customers. |
 | Neon limits (1 GB, 100 CU-h/month per project) | Writes fail or compute is suspended | No PDFs stored. Logos ≤ 200 KB. `/healthz` doesn't touch the DB. Admin metrics show DB size. Cap compute at 0.25–0.5 CU. |
 | Gmail refresh token revoked (password change, security event) | Waitlist and approval emails stop | Email failures are logged and shown in admin with a "resend" button. Approval still works without email. Re-auth steps are in `dev-and-testing.md`. |
 | **Tax rules to confirm with a CA** | Wrong invoices | **Resolved (2026-11-17):** POS for unregistered buyers (s.10(1)(ca)), GST on the full value in exchange (Rule 27), no GST/RCM on individuals' personal old gold (s.7). No RCM on unregistered dealers (s.9(4) after 1 Feb 2019). Retail making is in the 3% value, and Chapter 71 job work is 5%. TCS is off, with 2% only for scrap sales (s.394 IT Act 2025). **Still open:** none. Re-check when notifications change. |

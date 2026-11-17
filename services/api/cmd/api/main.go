@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 
 	"hisab/internal/db"
 	"hisab/migrations"
@@ -53,7 +54,12 @@ func run(migrateOnly bool) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := pgxpool.New(ctx, dbURL)
+	cfg, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		return err
+	}
+	cfg.MaxConns = 4 // per instance; Neon's pooler fans in
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -80,17 +86,27 @@ func run(migrateOnly bool) error {
 	return nil
 }
 
+// migrate runs on every cold start. Vercel may start several instances at once,
+// so a Postgres advisory lock serialises them.
 func migrate(url string) error {
 	sqlDB, err := sql.Open("pgx", url)
 	if err != nil {
 		return err
 	}
 	defer sqlDB.Close()
-	goose.SetBaseFS(migrations.FS)
-	if err := goose.SetDialect("postgres"); err != nil {
+	locker, err := lock.NewPostgresSessionLocker()
+	if err != nil {
 		return err
 	}
-	return goose.Up(sqlDB, ".")
+	p, err := goose.NewProvider(goose.DialectPostgres, sqlDB, migrations.FS, goose.WithSessionLocker(locker))
+	if err != nil {
+		return err
+	}
+	res, err := p.Up(context.Background())
+	for _, r := range res {
+		slog.Info("migrated", "file", r.Source.Path, "took", r.Duration)
+	}
+	return err
 }
 
 func routes(pool *pgxpool.Pool) http.Handler {
