@@ -24,7 +24,7 @@
 |---|---|---|
 | 1 | "Ask the amounts" | Opening balances per customer, default making charge and GST rate, **plus a daily metal-rate board** (24K/22K/18K/silver) that pre-fills line rates |
 | 2 | Domain | **None.** The app runs on `*.vercel.app`. A new Google account sends email via the Gmail API. |
-| 3 | Hosting | **Vercel** for everything: 2 static frontends + the Go API as a third project (Go preset), **Neon** free (Postgres: easy data access, never paused or deleted) |
+| 3 | Hosting | **Vercel** for everything: one project with Services (web `/`, admin `/admin/`, Go API `/api/*`) on `hisab.vercel.app`, **Neon** free (Postgres: easy data access, never paused or deleted) |
 | 4 | Old gold exchange | **In MVP.** Purchase vouchers, deducted on the sale bill. |
 | 5 | Composition dealers | Bill of Supply, no tax |
 | 6 | Place of supply | Your rule, verbatim (see `tax-engine.md` §3), overridable per bill. Confirmed by s.10(1)(ca) IGST Act + Circular 209/03/2024. |
@@ -50,7 +50,7 @@
 | Go HTTP | stdlib `net/http` ServeMux + Go 1.25 `http.CrossOriginProtection` | No router dependency. CSRF from the stdlib. |
 | DB access | pgx v5 + sqlc. **goose** migrations, embedded, run on API boot | Type-safe SQL. Single instance, so migrating on boot is safe. |
 | Auth | Google OIDC (go-oidc + x/oauth2, PKCE, nonce, `email_verified`), Postgres sessions, `__Host-` cookies | As requested. Providers are pluggable for phone OTP later. |
-| Cookies | **Vercel external rewrite** `/api/*` → `hisab-api.vercel.app`. The browser is same-origin, so cookies are first-party. | Solves the third-party cookie problem without a domain. |
+| Cookies | **One origin** via Vercel Services: the API is served under `/api/*` on the app's own domain, so cookies are first-party. | Solves the third-party cookie problem without a domain or rewrites. |
 | Email | `EmailSender` with two drivers: **Gmail API** (HTTPS) and **console** | Serverless has no SMTP worth relying on, and there's no domain for Resend/Brevo. |
 | Tax engine | **Go only.** The UI calls `POST /api/invoices/compute` (debounced) for live totals. | One implementation, so there's nothing to keep in sync. |
 | PDF | **Server-side Go (`go-pdf/fpdf`)**, built from the invoice snapshot on every request, never stored | Deterministic, light on memory, ₹ via embedded Noto Sans, zero storage. |

@@ -31,9 +31,10 @@
 
 | Piece | Host | Free limits (researched 2026-11-16) | Notes |
 |---|---|---|---|
-| `apps/web` | **Vercel Hobby** → `hisab.vercel.app` | ~100 GB bandwidth/month | **Hobby = non-commercial only.** Move to Cloudflare Pages or Netlify before charging customers (static build, so only the rewrite config changes). |
-| `apps/admin` | **Vercel Hobby** → `hisab-admin.vercel.app` | same | Separate project = separate origin = separate cookies. |
-| Go API | **Vercel**, third project `hisab-api`, Go framework preset (Beta), function region `sin1` | Hobby function limits; scales to zero (cold starts); no disk | Root `services/api`, `vercel.json` `{"framework":"go"}`. Vercel builds `cmd/api/main.go`, and the server listens on `PORT`. Migrations run on cold start under an advisory lock. |
+| Everything | **One Vercel Hobby project** `hisab` using **Services** (Beta), domain `hisab.vercel.app`. The root `vercel.json` routes `/api/*` and `/healthz` → `api`, `/admin/*` → `admin`, and everything else → `web`. | ~100 GB bandwidth/month; Hobby function limits; the API scales to zero (cold starts); no disk | **Hobby = non-commercial only.** Move to Pro before charging customers. |
+| `web` service | `apps/web`, static build (`build/client`), SPA fallback `__spa-fallback.html` | | |
+| `admin` service | `apps/admin`, Vite `base: "/admin/"`, built into `dist/admin/` (services receive the full path) | | Same origin as the app. Separate cookie name `__Host-asid`. |
+| `api` service | `services/api`, Go preset (Beta). Vercel builds `cmd/api/main.go`, and the server listens on `PORT`. Function region `sin1`. | | Migrations run on cold start under an advisory lock. Plain `net/http`, so it moves to Render/Koyeb unchanged. |
 | Postgres | **Neon Free**, Singapore | 1 GB storage, 100 CU-hours/month per project, scale-to-zero after 5 min | Easy data access: console SQL editor and table browser, any Postgres GUI, `pg_dump`, branches. Never paused or deleted. |
 | Email | **Gmail API** (new Google account) | ~500 recipients/day | Separate GCP project. Consent screen in Production status so the refresh token doesn't expire after 7 days. |
 | Backups | **GitHub Actions** cron → private repo `hisab-backups` (release assets) | Actions minutes: unlimited on public repos, 2,000/month private. One ~1 min job per night. | Keeps 30 daily + 12 monthly. |
@@ -57,11 +58,9 @@ hisab/
 │  │  │  ├─ components/         # Button, Field, MoneyField, WeightField, Dialog, ...
 │  │  │  └─ root.tsx
 │  │  ├─ public/                # og image, robots.txt, sitemap.xml
-│  │  ├─ vercel.json            # rewrite /api/* → hisab-api.vercel.app
 │  │  └─ react-router.config.ts
 │  └─ admin/
 │     ├─ src/
-│     └─ vercel.json            # rewrite /api/* → hisab-api.vercel.app
 ├─ services/
 │  └─ api/
 │     ├─ cmd/api/main.go        # config, pool, migrate, mux, serve
@@ -100,8 +99,8 @@ flowchart LR
   end
 
   subgraph Vercel[Vercel Hobby]
-    WEB[hisab.vercel.app<br/>static RR7 build<br/>rewrite /api/* ]
-    ADM[hisab-admin.vercel.app<br/>static SPA<br/>rewrite /api/*]
+    WEB[web service: /<br/>static RR build]
+    ADM[admin service: /admin/<br/>static SPA]
   end
 
   API[Go API on Vercel<br/>Singapore<br/>auth / tenant / admin routes<br/>tax engine + PDF]
@@ -128,16 +127,11 @@ flowchart LR
 ## 5. Auth design
 
 ### Cookie / domain solution
-- **Problem:** `vercel.app` is on the Public Suffix List, so `hisab.vercel.app` and `hisab-api.vercel.app` are different sites, and API cookies would be third-party and blocked.
-- **Solution:** each Vercel project has an external rewrite, so the browser only ever talks to its own origin:
-  ```json
-  { "rewrites": [ { "source": "/api/:path*", "destination": "https://hisab-api.vercel.app/api/:path*" } ] }
-  ```
-  For `apps/web`, the SPA fallback rewrite comes after this one.
-- Cookies are **host-only** with the `__Host-` prefix (`Secure; Path=/; HttpOnly; SameSite=Lax`, no `Domain`): `__Host-sid` on the web app and `__Host-asid` on admin. Neither can reach the other.
-- Hitting `hisab-api.vercel.app` directly carries no cookies, so it's useless to an attacker. No proxy secret is needed.
+- **One origin.** Vercel Services serve the web app, the admin app and the API from `hisab.vercel.app`, so every API call is same-origin and cookies are first-party. There's no cross-site rewrite and no proxy secret.
+- Cookies are **host-only** with the `__Host-` prefix (`Secure; Path=/; HttpOnly; SameSite=Lax`, no `Domain`). App: `__Host-sid`. Admin: `__Host-asid`. Each session row has an `audience`, so an app cookie never authorises `/api/admin/*`.
+- *ponytail: admin shares the app's origin (path `/admin/`). Move it to its own project/subdomain if XSS isolation between app and admin ever matters (staff users, more admins).*
 - Local dev mirrors this with the Vite dev server `proxy: { '/api': 'http://localhost:8080' }`.
-- **Phase 0 checks:** `Set-Cookie` survives the rewrite, and the latency added by the rewrite. The UI retries once on a 502/504.
+- **Phase 0 checks:** `Set-Cookie` round-trips through the service routing, and cold-start latency.
 
 ### OIDC flow
 - `GET /api/auth/google/start`:
@@ -151,9 +145,9 @@ flowchart LR
   - Creates the session and redirects by business status.
 - **Session:** 32 random bytes in the cookie. The DB stores `sha256(token)`. 7-day idle and 30-day absolute expiry. `last_seen_at` is written at most once an hour. Expired rows are pruned on login.
 - **Logout:** deletes the row and clears the cookie.
-- **CSRF:** `SameSite=Lax` + `http.CrossOriginProtection`, with trusted origins `https://hisab.vercel.app` and `https://hisab-admin.vercel.app` (plus localhost in dev). GET handlers never mutate.
+- **CSRF:** `SameSite=Lax` + `http.CrossOriginProtection`, with trusted origin `https://hisab.vercel.app` (plus localhost in dev). GET handlers never mutate.
 - **Admin:**
-  - Separate callback on `hisab-admin.vercel.app/api/admin/auth/google/callback`.
+  - Separate callback on `hisab.vercel.app/api/admin/auth/google/callback`.
   - An `admin` session is created only if the email is in `ADMIN_EMAILS`.
   - Middleware on **every** `/api/admin/*` route checks audience == admin and re-checks the allowlist.
   - Admin sessions expire after 12 h.

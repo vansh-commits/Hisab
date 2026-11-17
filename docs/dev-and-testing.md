@@ -35,7 +35,7 @@ Both Vite dev servers proxy `/api` to `http://localhost:8080`, which mirrors the
 | `DATABASE_URL_DIRECT` | same as above | Neon **direct** URL in prod (migrations) |
 | `TEST_DATABASE_URL` | `postgres://postgres@localhost:5433/hisab_test?sslmode=disable` | integration tests |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from GCP project **hisab-login** | login only |
-| `APP_ORIGIN` / `ADMIN_ORIGIN` | `http://localhost:5173` / `http://localhost:5174` | trusted origins + redirect URIs. Prod: `https://hisab.vercel.app` / `https://hisab-admin.vercel.app` |
+| `APP_ORIGIN` / `ADMIN_ORIGIN` | `http://localhost:5173` / `http://localhost:5174` | trusted origins + redirect URIs. Prod: both `https://hisab.vercel.app` (one origin) |
 | `ADMIN_EMAILS` | `you@gmail.com` | comma-separated allowlist |
 | `SESSION_COOKIE_NAME` / `ADMIN_SESSION_COOKIE_NAME` | `__Host-sid` / `__Host-asid` | override to `sid` if a browser balks on localhost |
 | `EMAIL_DRIVER` | `console` | `console` \| `gmail` |
@@ -44,26 +44,25 @@ Both Vite dev servers proxy `/api` to `http://localhost:8080`, which mirrors the
 
 ## 4. Google setup
 **Login (project `hisab-login`):** APIs & Services → OAuth consent screen (External, scopes `openid email profile`, add a privacy policy URL `https://hisab.vercel.app/privacy`) → Credentials → OAuth client "Web application".
-- JS origins: `http://localhost:5173`, `http://localhost:5174`, `https://hisab.vercel.app`, `https://hisab-admin.vercel.app`
+- JS origins: `http://localhost:5173`, `http://localhost:5174`, `https://hisab.vercel.app`
 - Redirect URIs:
   - `http://localhost:5173/api/auth/google/callback`
   - `http://localhost:5174/api/admin/auth/google/callback`
   - `https://hisab.vercel.app/api/auth/google/callback`
-  - `https://hisab-admin.vercel.app/api/admin/auth/google/callback`
+  - `https://hisab.vercel.app/api/admin/auth/google/callback`
 
 **Mailer (project `hisab-mailer`, signed in as the new Google account):**
 1. Enable the Gmail API. Consent screen: External, scope `https://www.googleapis.com/auth/gmail.send`. **Publishing status: "In production"** (it stays unverified, which is fine for your own account). Testing-mode refresh tokens expire after 7 days.
 2. Create an OAuth client "Web application" with the redirect URI `https://developers.google.com/oauthplayground` (the Playground needs it).
 3. Get a refresh token once. The simplest way is the OAuth 2.0 Playground (⚙ → use your own client ID/secret → scope `gmail.send` → authorize as the mailer account → exchange → copy the refresh token).
-4. Put the three values in the `hisab-api` Vercel project's env vars.
+4. Put the three values in the Vercel project's env vars.
 5. **If mail stops** (token revoked after a password change or security event): repeat step 3. Admin shows `email_sent: false` with a Resend button meanwhile.
 
 The Gmail driver is about 40 lines: refresh the access token via `x/oauth2`, build an RFC 822 message, base64url it, and `POST https://gmail.googleapis.com/gmail/v1/users/me/messages/send`.
 
 ## 5. Deploy (no pipeline needed at this size)
-- **Vercel API project `hisab-api`:** import the repo, root directory `services/api`, framework preset **Go** (`services/api/vercel.json` sets `"framework": "go"`). It builds `cmd/api/main.go` and listens on `PORT`. Settings → Functions → region **Singapore (sin1)**, next to Neon. Migrations run on each cold start under a Postgres advisory lock.
-- **Vercel frontends:** two more projects from the same repo (root `apps/web` → `hisab`, root `apps/admin` → `hisab-admin`), each with a `vercel.json` rewrite of `/api/:path*` → `https://hisab-api.vercel.app/api/:path*`.
-- **Neon:** project in Singapore. Copy the pooled and direct URLs into the `hisab-api` project. Set max compute to 0.25–0.5 CU.
+- **Vercel:** one project `hisab` from the repo, **Root Directory `./`**, Application Preset **Services**. The root `vercel.json` defines the three services (`api`, `admin`, `web`) and the routing. Env vars are set once on the project. Settings → Functions → region **Singapore (sin1)**, next to Neon. Migrations run on each API cold start under a Postgres advisory lock.
+- **Neon:** project in Singapore. Copy the pooled and direct URLs into the Vercel project's env vars. Set max compute to 0.25–0.5 CU.
 - **Backups (`.github/workflows/backup.yml`):**
   - Nightly at 02:00 IST: `pg_dump --format=custom $NEON_DIRECT_URL | age -r $AGE_PUBLIC_KEY > hisab-YYYY-MM-DD.dump.age`, then `gh release create` in the private repo `hisab-backups`, then prune to 30 daily + 12 monthly.
   - The age **private** key lives only on your machine and in a password manager.

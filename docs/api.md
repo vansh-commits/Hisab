@@ -194,7 +194,7 @@ Cancelled invoices appear in the register, flagged, and are excluded from tax to
 ## Health
 `GET /healthz` → `200 ok`. Doesn't touch the DB, so health checks don't wake Neon.
 
-## Admin (`hisab-admin.vercel.app/api/admin/*`, all audit-logged)
+## Admin (`hisab.vercel.app/api/admin/*`, UI at `/admin/`, all audit-logged)
 | Method & path | Notes |
 |---|---|
 | `GET /api/admin/auth/google/start` · `/callback` · `POST /api/admin/auth/logout` · `GET /api/admin/me` | allowlist only |
