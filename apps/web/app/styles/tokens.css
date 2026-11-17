@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold-600: #9a7b2f;
+  --color-gold-400: #c9a44c;
+  --color-gold-100: #f6eed9;
+  --color-ink: #1e1a16;
+  --color-ivory: #fbf8f1;
+  --color-maroon-700: #6b1e2a;
+  --font-display: "Cormorant Garamond", "Tiro Devanagari Hindi", serif;
+  --font-sans: "Mukta", system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-ivory);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+.money { font-variant-numeric: tabular-nums; }

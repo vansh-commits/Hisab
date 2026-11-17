@@ -1,0 +1,6 @@
+{
+  "name": "@hisab/api",
+  "private": true,
+  "type": "module",
+  "exports": "./types.ts"
+}
