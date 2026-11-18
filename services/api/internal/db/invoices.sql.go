@@ -608,6 +608,21 @@ func (q *Queries) LockInvoice(ctx context.Context, arg LockInvoiceParams) (Invoi
 	return i, err
 }
 
+const lockSeries = `-- name: LockSeries :exec
+SELECT 1 FROM number_series WHERE business_id = $1 AND doc_type = $2 AND series_key = $3 FOR UPDATE
+`
+
+type LockSeriesParams struct {
+	BusinessID string `json:"business_id"`
+	DocType    string `json:"doc_type"`
+	SeriesKey  int16  `json:"series_key"`
+}
+
+func (q *Queries) LockSeries(ctx context.Context, arg LockSeriesParams) error {
+	_, err := q.db.Exec(ctx, lockSeries, arg.BusinessID, arg.DocType, arg.SeriesKey)
+	return err
+}
+
 const paidForInvoice = `-- name: PaidForInvoice :one
 SELECT COALESCE(sum(amount_paise), 0)::bigint FROM payments
 WHERE business_id = $1 AND invoice_id = $2 AND voided_at IS NULL

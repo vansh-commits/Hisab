@@ -221,7 +221,8 @@ export default function BillEdit({ loaderData: d }: Route.ComponentProps) {
       if (e instanceof ApiError) {
         setErr(e.fields);
         setMsg(e.code === "totals_mismatch" ? "Totals were refreshed — please check and press Save again." : e.message);
-        if (e.code === "totals_mismatch") setComputed(null);
+        // The effect only recomputes when the input changes, so take the fresh totals from the 409 itself.
+        if (e.code === "totals_mismatch") setComputed((e.extra.computed as Computed | undefined) ?? null);
       } else setMsg("Something went wrong. Please try again.");
     } finally {
       setBusy(false);

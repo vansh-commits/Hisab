@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -41,7 +42,23 @@ func report(w http.ResponseWriter, r *http.Request, name string, items any, head
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.csv"`)
 	cw := csv.NewWriter(w)
 	_ = cw.Write(header)
+	for _, row := range rows {
+		for i, c := range row {
+			row[i] = csvSafe(c)
+		}
+	}
 	_ = cw.WriteAll(rows)
+}
+
+// csvSafe defuses spreadsheet formulas in user text (buyer/seller names); numbers like "-0.50" pass through.
+func csvSafe(c string) string {
+	if c == "" || !strings.ContainsRune("=+-@\t\r", rune(c[0])) {
+		return c
+	}
+	if _, err := strconv.ParseFloat(c, 64); err == nil {
+		return c
+	}
+	return "'" + c
 }
 
 func rupees(p int64) string {

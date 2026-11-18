@@ -72,3 +72,6 @@ WHERE business_id = $1 AND invoice_id = $2 AND voided_at IS NULL AND mode <> 'ol
 
 -- name: InvoicePayments :many
 SELECT * FROM payments WHERE business_id = $1 AND invoice_id = $2 ORDER BY received_on, created_at;
+
+-- name: LockSeries :exec
+SELECT 1 FROM number_series WHERE business_id = $1 AND doc_type = $2 AND series_key = $3 FOR UPDATE;

@@ -321,6 +321,16 @@ func (s *Server) patchSettings(w http.ResponseWriter, r *http.Request) {
 	if n := docNumber(next, fyStart(time.Now()), cur.NextNo); len(n) > maxDocNo {
 		f["invoice_prefix"] = fmt.Sprintf("Bill number %q is longer than %d characters", n, maxDocNo)
 	}
+	// Flipping fy_reset switches series_key, which restarts numbering at 1 and can repeat issued numbers.
+	if fy := fyStart(time.Now()); p.FyReset != cur.FyReset {
+		used, err := s.Q.IssuedInSeries(r.Context(), db.IssuedInSeriesParams{BusinessID: b.ID, SeriesKey: ptr(seriesKey(cur.BusinessSetting, fy))})
+		if err != nil {
+			internalError(w, r, err)
+			return
+		} else if used {
+			f["fy_reset"] = "Bills are already issued in the current series; this can't change now"
+		}
+	}
 	if invalid(w, f) {
 		return
 	}
@@ -348,13 +358,7 @@ func (s *Server) putNumberSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fy := fyStart(time.Now())
-	if used, err := s.Q.IssuedInSeries(r.Context(), db.IssuedInSeriesParams{BusinessID: b.ID, SeriesKey: ptr(seriesKey(cur.BusinessSetting, fy))}); err != nil {
-		internalError(w, r, err)
-		return
-	} else if used {
-		apiError(w, 409, "series_in_use", "Bills are already issued in this year's series; the number can't change now", nil)
-		return
-	}
+	key := seriesKey(cur.BusinessSetting, fy)
 	if in.StartingNo < 1 || in.StartingNo > 99999999 {
 		invalid(w, map[string]string{"starting_no": "must be between 1 and 99999999"})
 		return
@@ -364,14 +368,25 @@ func (s *Server) putNumberSeries(w http.ResponseWriter, r *http.Request) {
 	}
 	err = pgx.BeginFunc(r.Context(), s.Pool, func(tx pgx.Tx) error {
 		q := s.Q.WithTx(tx)
-		if err := q.SetNextNo(r.Context(), db.SetNextNoParams{BusinessID: b.ID, DocType: "invoice",
-			SeriesKey: seriesKey(cur.BusinessSetting, fy), NextNo: in.StartingNo}); err != nil {
+		// Lock the series row first: an issuer holding it commits before we check, so the check can't go stale.
+		if err := q.EnsureSeries(r.Context(), db.EnsureSeriesParams{BusinessID: b.ID, DocType: "invoice", SeriesKey: key}); err != nil {
+			return err
+		}
+		if err := q.LockSeries(r.Context(), db.LockSeriesParams{BusinessID: b.ID, DocType: "invoice", SeriesKey: key}); err != nil {
+			return err
+		}
+		if used, err := q.IssuedInSeries(r.Context(), db.IssuedInSeriesParams{BusinessID: b.ID, SeriesKey: &key}); err != nil {
+			return err
+		} else if used {
+			return &httpErr{status: 409, code: "series_in_use", msg: "Bills are already issued in this year's series; the number can't change now"}
+		}
+		if err := q.SetNextNo(r.Context(), db.SetNextNoParams{BusinessID: b.ID, DocType: "invoice", SeriesKey: key, NextNo: in.StartingNo}); err != nil {
 			return err
 		}
 		return audit(r.Context(), q, r, "settings.number_series", b.ID, in)
 	})
 	if err != nil {
-		internalError(w, r, err)
+		fail(w, r, err)
 		return
 	}
 	s.getSettings(w, r)

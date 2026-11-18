@@ -76,6 +76,7 @@ func TestInvoiceLifecycle(t *testing.T) {
 		t.Fatal("snapshot changed after settings edit")
 	}
 	expect(t, hs.do("PUT", "/api/settings/number-series", map[string]any{"starting_no": 500}, c), 409, "series_in_use")
+	expect(t, hs.do("PATCH", "/api/settings", map[string]any{"fy_reset": false}, c), 422, `"fy_reset"`)
 
 	// Immutability below the app.
 	if _, err := hs.s.Pool.Exec(context.Background(), "UPDATE invoices SET grand_total_paise = 1 WHERE id = $1", b1); err == nil {
@@ -274,6 +275,14 @@ func TestConcurrentNumbering(t *testing.T) {
 	for i, n := range nos {
 		if want := fmt.Sprintf("SJ/26-27/%04d", i+1); n != want {
 			t.Fatalf("gap: got %s want %s", n, want)
+		}
+	}
+}
+
+func TestCSVSafe(t *testing.T) {
+	for in, want := range map[string]string{"=HYPERLINK(1)": "'=HYPERLINK(1)", "-0.50": "-0.50", "+91 98": "'+91 98", "@x": "'@x", "Ramesh": "Ramesh", "": ""} {
+		if got := csvSafe(in); got != want {
+			t.Errorf("csvSafe(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

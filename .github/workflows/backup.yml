@@ -31,6 +31,6 @@ jobs:
           if [ "$(date -u +%d)" = "01" ]; then
             gh release create "monthly-$(date -u +%Y-%m)" "hisab-$ts.dump.age" -R "$REPO" -n "Monthly backup"
           fi
-          prune() { gh release list -R "$REPO" -L 500 --json tagName -q '.[].tagName' | grep "^$1-" | sort -r | tail -n +"$2" | xargs -r -I{} gh release delete {} -R "$REPO" -y --cleanup-tag; }
+          prune() { gh release list -R "$REPO" -L 500 --json tagName -q '.[].tagName' | { grep "^$1-" || true; } | sort -r | tail -n +"$2" | xargs -r -I{} gh release delete {} -R "$REPO" -y --cleanup-tag; }
           prune daily 31
           prune monthly 13

@@ -223,7 +223,7 @@ func (s *Server) tenantRoutes() map[string]http.HandlerFunc {
 		"GET /api/settings":               t(rw, s.getSettings),
 		"PATCH /api/settings":             t(rw, s.patchSettings),
 		"PUT /api/settings/number-series": t(rw, s.putNumberSeries),
-		"GET /api/metal-rates":            t(rw, s.getRates),
+		"GET /api/metal-rates":            t(ro, s.getRates),
 		"PUT /api/metal-rates":            t(rw, s.putRates),
 		"GET /api/onboarding":             t(rw, s.getOnboarding),
 		"PATCH /api/onboarding":           t("approved", s.patchOnboarding),

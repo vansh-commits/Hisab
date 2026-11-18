@@ -6,6 +6,7 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     public fields: Record<string, string> = {},
+    public extra: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -22,7 +23,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const e = (data as ApiErrorBody | null)?.error;
-    throw new ApiError(res.status, e?.code ?? "http_" + res.status, e?.message ?? "Something went wrong", e?.fields);
+    throw new ApiError(res.status, e?.code ?? "http_" + res.status, e?.message ?? "Something went wrong", e?.fields, (e as Record<string, unknown> | undefined) ?? {});
   }
   return data as T;
 }

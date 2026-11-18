@@ -1,4 +1,4 @@
-import type { MetalRate, Page, Party, Voucher } from "@hisab/api";
+import type { MetalRate, Page, PartyBalance, Voucher } from "@hisab/api";
 import { useEffect, useState } from "react";
 import { useRevalidator } from "react-router";
 import { fmtDate } from "../components/bills";
@@ -9,7 +9,7 @@ import type { Route } from "./+types/app.old-gold";
 import { readOnly, useMe } from "./app";
 
 export async function clientLoader() {
-  const [v, p, r] = await Promise.all([api<Page<Voucher>>("/purchase-vouchers"), api<Page<Party>>("/parties"), api<{ items: MetalRate[] }>("/metal-rates")]);
+  const [v, p, r] = await Promise.all([api<Page<Voucher>>("/purchase-vouchers"), api<{ items: PartyBalance[] }>("/parties/balances"), api<{ items: MetalRate[] }>("/metal-rates")]);
   return { vouchers: v.items, parties: p.items, rates: r.items };
 }
 
@@ -57,7 +57,7 @@ function CancelVoucher({ id }: { id: string }) {
   );
 }
 
-function VoucherForm({ d, done }: { d: { parties: Party[]; rates: MetalRate[] }; done: () => void }) {
+function VoucherForm({ d, done }: { d: { parties: PartyBalance[]; rates: MetalRate[] }; done: () => void }) {
   const { revalidate } = useRevalidator();
   const rate22 = plain(d.rates.find((r) => r.metal === "22K")?.rate_paise, 2);
   const [rows, setRows] = useState<Row[]>([{ description: "Old gold ornaments", purity: "22K", gross: "", less: "", rate: rate22 }]);
@@ -81,7 +81,7 @@ function VoucherForm({ d, done }: { d: { parties: Party[]; rates: MetalRate[] };
     try {
       await api("/purchase-vouchers", { method: "POST", body: {
         party_id: party || null, seller_kind: kind, settlement, paid_mode: settlement === "paid" ? mode : null, lines,
-        seller: { name: p?.name ?? seller.name, phone: (p?.phone ?? seller.phone) || null, address: p?.bill_address ?? seller.address, pan: seller.pan || null, state_code: null, gstin: null },
+        seller: { name: p?.name ?? seller.name, phone: (p?.phone ?? seller.phone) || null, address: p ? "" : seller.address, pan: seller.pan || null, state_code: null, gstin: null },
       } });
       await revalidate();
       done();
