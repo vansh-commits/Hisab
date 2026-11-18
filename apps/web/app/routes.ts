@@ -15,6 +15,7 @@ export default [
     route("bills/:id", "routes/app.bill.tsx"),
     route("customers", "routes/app.customers.tsx"),
     route("customers/:id", "routes/app.customer.tsx"),
+    route("items", "routes/app.items.tsx"),
     route("old-gold", "routes/app.old-gold.tsx"),
     route("reports", "routes/app.reports.tsx"),
     route("rates", "routes/app.rates.tsx"),

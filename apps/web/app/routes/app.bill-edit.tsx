@@ -1,24 +1,26 @@
-import type { Business, Computed, InvoiceDetail, InvoiceInput, Item, LineInput, MakingMode, MetalRate, Page, Party, Settings, State } from "@hisab/api";
+import type { Business, Computed, InvoiceDetail, InvoiceInput, Item, LineInput, MakingMode, MetalRate, Party, PartyBalance, Settings, State } from "@hisab/api";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { ItemForm } from "../components/item-form";
 import { Button, Check, Field, Select } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { gstinProblem } from "../lib/gstin";
 import { fmtINR, parseScaled, plain } from "../lib/money";
 import type { Route } from "./+types/app.bill-edit";
 
-type Data = { biz: Business; settings: Settings; rates: MetalRate[]; items: Item[]; states: State[]; draft: InvoiceDetail | null };
+type Data = { biz: Business; settings: Settings; rates: MetalRate[]; items: Item[]; states: State[]; parties: PartyBalance[]; draft: InvoiceDetail | null };
 
 export async function clientLoader({ params }: Route.ClientLoaderArgs): Promise<Data> {
-  const [biz, settings, rates, items, states, draft] = await Promise.all([
+  const [biz, settings, rates, items, states, parties, draft] = await Promise.all([
     api<Business>("/business"),
     api<Settings>("/settings"),
     api<{ items: MetalRate[] }>("/metal-rates"),
     api<{ items: Item[] }>("/items"),
     api<{ items: State[] }>("/states"),
+    api<{ items: PartyBalance[] }>("/parties/balances"),
     params.id ? api<InvoiceDetail>(`/invoices/${params.id}`) : Promise.resolve(null),
   ]);
-  return { biz, settings, rates: rates.items, items: items.items, states: states.items, draft };
+  return { biz, settings, rates: rates.items, items: items.items, states: states.items, parties: parties.items, draft };
 }
 
 // ── form state: strings as typed, converted to API units on the way out ──
@@ -59,7 +61,7 @@ const today = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 1
 const makingDec = (m: MakingMode) => (m === "percent" ? 3 : 2);
 
 function newLine(s: Settings, item?: Item, rates: MetalRate[] = []): LineForm {
-  const rate = item?.metal ? rates.find((r) => r.metal === item.metal)?.rate_paise : undefined;
+  const rate = item?.metal ? rates.find((r) => r.metal === item.metal)?.rate_paise : item?.default_rate_paise ?? undefined;
   const charge = item?.unit === "nos" && item.metal == null && item.hsn?.startsWith("99");
   return {
     kind: charge ? "charge" : "goods",
@@ -72,8 +74,10 @@ function newLine(s: Settings, item?: Item, rates: MetalRate[] = []): LineForm {
     gross: "",
     qty: "",
     rate: plain(rate, 2),
-    makingMode: s.default_making_mode,
-    making: s.default_making_value ? plain(s.default_making_value, makingDec(s.default_making_mode)) : "",
+    makingMode: item?.making_mode ?? s.default_making_mode,
+    making: item?.making_mode && item.making_value != null
+      ? plain(item.making_value, makingDec(item.making_mode))
+      : s.default_making_value ? plain(s.default_making_value, makingDec(s.default_making_mode)) : "",
     other: "",
     gst: plain(item?.gst_rate ?? s.default_gst_rate, 3),
     target: "",
@@ -163,6 +167,7 @@ export default function BillEdit({ loaderData: d }: Route.ComponentProps) {
   const [err, setErr] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [items, setItems] = useState<Item[]>(d.items);
   const { input, errors: localErr } = toInput(f);
   const key = JSON.stringify(input);
 
@@ -192,6 +197,11 @@ export default function BillEdit({ loaderData: d }: Route.ComponentProps) {
   const setLine = (i: number, patch: Partial<LineForm>) => setF((x) => ({ ...x, lines: x.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
   const setOG = (i: number, patch: Partial<OGForm>) => setF((x) => ({ ...x, og: x.og!.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
   const e = (k: string) => err[k];
+
+  // pickItem fills a line from a particular, keeping the weights already typed.
+  function pickItem(i: number, item: Item) {
+    setF((x) => ({ ...x, lines: x.lines.map((l, j) => (j === i ? { ...newLine(d.settings, item, d.rates), qty: l.qty, gross: l.gross, target: l.target } : l)) }));
+  }
 
   function addItem(item?: Item) {
     const line = newLine(d.settings, item, d.rates);
@@ -252,16 +262,6 @@ export default function BillEdit({ loaderData: d }: Route.ComponentProps) {
 
         <BuyerSection d={d} f={f} set={set} e={e} />
 
-        {d.items.length > 0 && (
-          <div className="flex flex-wrap gap-2" aria-label="Quick add item">
-            {d.items.map((it) => (
-              <button key={it.id} type="button" onClick={() => addItem(it)} className="min-h-10 rounded-full border border-gold-400 bg-white px-3 text-sm hover:bg-gold-100">
-                + {it.name}
-              </button>
-            ))}
-          </div>
-        )}
-
         {f.lines.map((l, i) => (
           <fieldset key={i} className="space-y-3 rounded-2xl border border-gold-400/40 bg-white p-4">
             <div className="flex items-center justify-between">
@@ -270,6 +270,7 @@ export default function BillEdit({ loaderData: d }: Route.ComponentProps) {
               </legend>
               {f.lines.length > 1 && <button type="button" className="text-sm text-maroon-700" onClick={() => set({ lines: f.lines.filter((_, j) => j !== i) })}>Remove</button>}
             </div>
+            <ParticularPicker items={items} rates={d.rates} value={l.item_id} onPick={(it) => pickItem(i, it)} onCreated={(it) => { setItems([...items, it]); pickItem(i, it); }} />
             <div className="grid grid-cols-6 gap-3">
               <div className="col-span-4"><Field label="Description" value={l.description} onChange={(x) => setLine(i, { description: x.target.value })} error={e(`lines[${i}].description`)} /></div>
               <div className="col-span-2"><Field label={l.kind === "charge" ? "SAC" : "HSN"} value={l.hsn} inputMode="numeric" maxLength={8} onChange={(x) => setLine(i, { hsn: x.target.value.replace(/\D/g, "") })} error={e(`lines[${i}].hsn`)} /></div>
@@ -406,64 +407,99 @@ export default function BillEdit({ loaderData: d }: Route.ComponentProps) {
   );
 }
 
-// BuyerSection: search saved customers, or type a walk-in buyer.
+// ParticularPicker: choose a saved particular for this line, or add a new one without leaving the bill.
+function ParticularPicker({ items, rates, value, onPick, onCreated }: { items: Item[]; rates: MetalRate[]; value: string | null; onPick: (it: Item) => void; onCreated: (it: Item) => void }) {
+  const [adding, setAdding] = useState(false);
+  if (adding) {
+    return <ItemForm rates={rates} onSaved={(it) => { setAdding(false); onCreated(it); }} onCancel={() => setAdding(false)} />;
+  }
+  return (
+    <Select label="Particular" value={value ?? ""} onChange={(e) => {
+      if (e.target.value === "__new") return setAdding(true);
+      const it = items.find((x) => x.id === e.target.value);
+      if (it) onPick(it);
+    }}>
+      <option value="">— Choose a particular (or type below) —</option>
+      {items.map((it) => (
+        <option key={it.id} value={it.id}>{it.name}{it.purity ? ` · ${it.purity}` : ""} · HSN {it.hsn ?? "—"} · {it.gst_rate / 1000}%</option>
+      ))}
+      <option value="__new">＋ Add new particular…</option>
+    </Select>
+  );
+}
+
+// BuyerSection: pick a saved customer from the dropdown, add a new one in place, or bill a walk-in.
 function BuyerSection({ d, f, set, e }: { d: Data; f: BillForm; set: (p: Partial<BillForm>) => void; e: (k: string) => string | undefined }) {
-  const [q, setQ] = useState("");
-  const [hits, setHits] = useState<Party[]>([]);
+  const [parties, setParties] = useState(d.parties);
+  const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState(!!(f.buyer.address || f.buyer.gstin));
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [saveErr, setSaveErr] = useState<Record<string, string>>({});
   const b = f.buyer;
   const setB = (p: Partial<Buyer>) => set({ buyer: { ...b, ...p } });
-  function search(v: string) {
-    setQ(v);
-    clearTimeout(timer.current);
-    if (!v.trim()) return setHits([]);
-    timer.current = setTimeout(async () => setHits((await api<Page<Party>>(`/parties?q=${encodeURIComponent(v)}`)).items.slice(0, 6)), 250);
-  }
-  function pick(p: Party) {
+  const walkIn = () => ({ name: "", address: "", state: d.biz.state_code ?? "", gstin: "", phone: "", pan: "" });
+
+  async function pick(id: string) {
+    if (id === "__new") {
+      set({ party_id: null, buyer: walkIn() });
+      setAdding(true);
+      setOpen(true);
+      return;
+    }
+    setAdding(false);
+    if (!id) return set({ party_id: null, buyer: walkIn() });
+    const p = await api<Party>(`/parties/${id}`);
     set({ party_id: p.id, buyer: { name: p.name, address: p.bill_address, state: p.bill_state_code ?? d.biz.state_code ?? "", gstin: p.gstin ?? "", phone: p.phone ?? "", pan: p.pan ?? "" } });
-    setQ("");
-    setHits([]);
   }
+
+  // saveCustomer stores the typed buyer in the khata and selects them.
+  async function saveCustomer() {
+    try {
+      const p = await api<Party>("/parties", { method: "POST", body: { name: b.name, phone: b.phone || null, bill_address: b.address, bill_state_code: b.state || null, gstin: b.gstin || null, pan: b.pan || null } });
+      setParties([...parties, { id: p.id, name: p.name, phone: p.phone, balance_paise: p.opening_balance_paise }].sort((x, y) => x.name.localeCompare(y.name)));
+      set({ party_id: p.id });
+      setAdding(false);
+      setSaveErr({});
+    } catch (x) {
+      if (x instanceof ApiError) setSaveErr({ ...x.fields, _: x.message });
+    }
+  }
+
+  const err = (k: string, api = k) => saveErr[api] ?? e(k);
+  const selected = f.party_id ?? (adding ? "__new" : "");
   return (
     <fieldset className="space-y-3 rounded-2xl border border-gold-400/40 bg-white p-4">
       <legend className="text-sm font-semibold">Customer</legend>
-      {f.party_id ? (
-        <div className="flex items-center justify-between rounded-xl bg-gold-100 px-3 py-2">
-          <span><b>{b.name}</b> {b.phone && <span className="text-sm text-ink/60">· {b.phone}</span>}</span>
-          <button type="button" className="text-sm text-maroon-700" onClick={() => set({ party_id: null, buyer: { name: "", address: "", state: d.biz.state_code ?? "", gstin: "", phone: "", pan: "" } })}>Change</button>
-        </div>
-      ) : (
-        <div className="relative">
-          <Field label="Search saved customer (name / phone)" value={q} onChange={(x) => search(x.target.value)} placeholder="Type to search… or fill walk-in details below" />
-          {hits.length > 0 && (
-            <ul className="absolute inset-x-0 z-10 mt-1 overflow-hidden rounded-xl border border-gold-400/50 bg-white shadow-lg">
-              {hits.map((p) => (
-                <li key={p.id}><button type="button" className="w-full px-3 py-3 text-left hover:bg-gold-100" onClick={() => pick(p)}>{p.name} <span className="text-sm text-ink/60">{p.phone}</span></button></li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      <Select label="Bill to" value={selected} onChange={(x) => pick(x.target.value)}>
+        <option value="">Walk-in / cash customer</option>
+        {parties.map((p) => <option key={p.id} value={p.id}>{p.name}{p.phone ? ` · ${p.phone}` : ""}</option>)}
+        <option value="__new">＋ Add new customer…</option>
+      </Select>
       {!f.party_id && (
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Name (walk-in)" value={b.name} onChange={(x) => setB({ name: x.target.value })} error={e("buyer.name")} />
+          <Field label={adding ? "Customer name" : "Name (walk-in)"} value={b.name} onChange={(x) => setB({ name: x.target.value })} error={err("buyer.name", "name")} />
           <Field label="Phone" value={b.phone} inputMode="tel" onChange={(x) => setB({ phone: x.target.value })} />
         </div>
       )}
-      <button type="button" className="text-sm text-gold-600 underline" onClick={() => setOpen(!open)}>{open ? "Hide" : "Address, state, GSTIN, PAN"}</button>
+      {!adding && <button type="button" className="text-sm text-gold-600 underline" onClick={() => setOpen(!open)}>{open ? "Hide details" : "Address, state, GSTIN, PAN"}</button>}
       {open && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2"><Field label="Address" value={b.address} onChange={(x) => setB({ address: x.target.value })} error={e("buyer.address")} /></div>
-          <Select label="State" value={b.state} onChange={(x) => setB({ state: x.target.value })} error={e("buyer.state_code")}>
+          <div className="col-span-2"><Field label="Address" value={b.address} onChange={(x) => setB({ address: x.target.value })} error={err("buyer.address", "bill_address")} /></div>
+          <Select label="State" value={b.state} onChange={(x) => setB({ state: x.target.value })} error={err("buyer.state_code", "bill_state_code")}>
             <option value="">—</option>
             {d.states.map((s) => <option key={s.code} value={s.code}>{s.name} · {s.code}</option>)}
           </Select>
-          <Field label="GSTIN" value={b.gstin} maxLength={15} onChange={(x) => setB({ gstin: x.target.value.toUpperCase() })} error={e("buyer.gstin") ?? gstinProblem(b.gstin)} />
-          <Field label="PAN" value={b.pan} maxLength={10} onChange={(x) => setB({ pan: x.target.value.toUpperCase() })} error={e("buyer.pan")} />
+          <Field label="GSTIN" value={b.gstin} maxLength={15} onChange={(x) => setB({ gstin: x.target.value.toUpperCase() })} error={err("buyer.gstin", "gstin") ?? gstinProblem(b.gstin)} />
+          <Field label="PAN" value={b.pan} maxLength={10} onChange={(x) => setB({ pan: x.target.value.toUpperCase() })} error={err("buyer.pan", "pan")} />
         </div>
       )}
-      {(e("buyer.address") || e("buyer.state_code")) && !open && <p className="text-sm text-maroon-700">Address and state are needed for this bill — tap above.</p>}
+      {adding && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={saveCustomer}>Save customer to khata</Button>
+          <button type="button" className="text-sm text-ink/60 underline" onClick={() => setAdding(false)}>Just bill as walk-in</button>
+          {saveErr._ && <span className="text-sm text-maroon-700">{saveErr._}</span>}
+        </div>
+      )}
+      {(e("buyer.address") || e("buyer.state_code")) && !open && <p className="text-sm text-maroon-700">Address and state are needed for this bill — tap “Address, state…” above.</p>}
     </fieldset>
   );
 }

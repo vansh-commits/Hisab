@@ -144,6 +144,9 @@ export interface Item {
   purity: string | null;
   gst_rate: number;
   metal: string | null;
+  default_rate_paise: number | null;
+  making_mode: MakingMode | null;
+  making_value: number | null;
 }
 
 // ── Phase 4/5: documents ─────────────────────────────────────────────────

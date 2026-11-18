@@ -37,7 +37,7 @@ export default function Onboarding({ loaderData: d }: Route.ComponentProps) {
     try {
       if (save) await save();
       if (step === last && to > last) {
-        navigate("/app");
+        window.location.assign("/app?tour=1"); // full reload (the layout's cached /me still says "approved"), then the tour
         return;
       }
       await api("/onboarding", { method: "PATCH", body: { step: to } });
