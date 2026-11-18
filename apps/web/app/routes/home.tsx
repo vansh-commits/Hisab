@@ -1,7 +1,7 @@
 import { ArrowRight, BookOpen, Calculator, ChartColumn, Check, Coins, FileText, Gem, Lock, RefreshCw, Scale, ShieldCheck, Smartphone, TrendingUp, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  BillScreen, DesktopDashboard, IssuedScreen, KhataScreen, ParticularsScreen, Phone, RatesScreen, ReportsScreen, Reveal, useInView,
+  BillScreen, DesktopDashboard, Fit, HomeScreen, IssuedScreen, KhataScreen, ParticularsScreen, Phone, RatesScreen, ReportsScreen, Reveal, useInView,
 } from "../components/landing-mocks";
 
 const SITE = "https://hisab-zeta-opal.vercel.app";
@@ -110,13 +110,14 @@ function Showcase() {
     <section className="overflow-hidden bg-ink py-20 text-ivory">
       <div className="mx-auto max-w-6xl px-4">
         <Reveal className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-widest text-gold-400">Counter par computer?</p>
-          <h2 className="mt-2 font-display text-4xl font-semibold md:text-5xl">Wahi Hisab, badi screen par</h2>
-          <p className="mt-3 text-lg text-ivory/70">Phone par bill, computer par report — ek hi account, sab sync. Sidebar mein har cheez ek click door.</p>
+          <p className="text-sm font-semibold uppercase tracking-widest text-gold-400">Kahin se bhi</p>
+          <h2 className="mt-2 font-display text-4xl font-semibold md:text-5xl">Phone par bhi, computer par bhi</h2>
+          <p className="mt-3 text-lg text-ivory/70">Counter par phone se bill, ghar par computer se report — ek hi account, sab sync. Har cheez ek tap door.</p>
         </Reveal>
-        <div ref={ref} className="mt-12 [perspective:1600px]">
-          <div className={`showcase ${seen ? "is-in" : ""}`}><DesktopDashboard /></div>
+        <div ref={ref} className="mt-12 hidden [perspective:1600px] md:block">
+          <div className={`showcase ${seen ? "is-in" : ""}`}><Fit><DesktopDashboard /></Fit></div>
         </div>
+        <Reveal className="mt-10 md:hidden"><Phone className="ring-1 ring-white/20"><HomeScreen /></Phone></Reveal>
       </div>
     </section>
   );

@@ -260,3 +260,62 @@ export function DesktopDashboard() {
     </div>
   );
 }
+
+// Fit renders children at a fixed design width and scales them down to the available width,
+// so the laptop mockup looks like a shrunken screenshot on phones instead of reflowing.
+export function Fit({ width = 960, children }: { width?: number; children: ReactNode }) {
+  const outer = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<{ s: number; h?: number }>({ s: 1 });
+  useEffect(() => {
+    const o = outer.current, i = inner.current;
+    if (!o || !i) return;
+    const measure = () => {
+      const s = Math.min(1, o.clientWidth / width);
+      setFit({ s, h: i.offsetHeight * s });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(o);
+    ro.observe(i);
+    return () => ro.disconnect();
+  }, [width]);
+  return (
+    <div ref={outer} className="overflow-hidden" style={{ height: fit.h }}>
+      <div ref={inner} style={{ width, transform: `scale(${fit.s})`, transformOrigin: "top left" }}>{children}</div>
+    </div>
+  );
+}
+
+// HomeScreen: the dashboard as it looks on a phone (used where the laptop mockup would be too small).
+export function HomeScreen() {
+  return (
+    <>
+      <AppBar title="Home" />
+      <div className="space-y-2 p-3">
+        <div className="text-[10px] text-ink/50">Tuesday, 18 November</div>
+        <div className="font-display text-lg font-semibold">Namaste Ramesh 🙏</div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {[["Today's sales", "₹4,46,119.00"], ["This month", "₹38,42,190.00"]].map(([a, b], i) => (
+            <Card key={a} className="mock-pop" delay={i * 90}><div className="text-[9px] text-ink/60">{a}</div><div className="money mt-0.5 font-semibold">{b}</div></Card>
+          ))}
+          <Card className="mock-pop col-span-2" delay={180}><div className="text-[9px] text-ink/60">To collect (udhaar)</div><div className="money mt-0.5 font-semibold text-maroon-700">₹2,15,400.00</div></Card>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5 text-[10px] font-semibold">
+          {["New bill", "Receive payment", "Buy old gold", "Update rates"].map((a) => (
+            <Card key={a} className="flex items-center gap-1.5 !p-2"><span className="size-4 shrink-0 rounded bg-gold-600" />{a}</Card>
+          ))}
+        </div>
+        <div className="overflow-hidden rounded-xl border border-gold-400/40 bg-white">
+          {[["SJ/26-27/0148", "Meena Traders", "₹4,46,119", "Paid"], ["SJ/26-27/0147", "Cash customer", "₹62,410", "Due"]].map(([a, b, c, d]) => (
+            <div key={a} className="flex items-center justify-between border-t border-gold-400/30 px-2 py-1.5 first:border-0">
+              <span><span className="block font-mono text-[9px]">{a}</span><span className="text-[9px] text-ink/60">{b}</span></span>
+              <span className="text-right"><span className="money block font-semibold">{c}</span><span className={`text-[8px] font-semibold ${d === "Paid" ? "text-green-800" : "text-maroon-700"}`}>{d}</span></span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Tabs active={0} />
+    </>
+  );
+}
