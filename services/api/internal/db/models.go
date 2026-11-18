@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"net/netip"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type AuditLog struct {
@@ -66,11 +68,99 @@ type Business struct {
 	UpdatedAt             time.Time  `json:"updated_at"`
 }
 
+type BusinessSetting struct {
+	BusinessID               string          `json:"business_id"`
+	InvoicePrefix            string          `json:"invoice_prefix"`
+	IncludeFy                bool            `json:"include_fy"`
+	NumberMinDigits          int16           `json:"number_min_digits"`
+	FyReset                  bool            `json:"fy_reset"`
+	Copies                   []string        `json:"copies"`
+	Terms                    string          `json:"terms"`
+	Declaration              string          `json:"declaration"`
+	Jurisdiction             string          `json:"jurisdiction"`
+	SignatoryName            string          `json:"signatory_name"`
+	BankName                 *string         `json:"bank_name"`
+	BankAccountName          *string         `json:"bank_account_name"`
+	BankAccountNo            *string         `json:"bank_account_no"`
+	BankIfsc                 *string         `json:"bank_ifsc"`
+	BankBranch               *string         `json:"bank_branch"`
+	UpiID                    *string         `json:"upi_id"`
+	DefaultGstRate           int32           `json:"default_gst_rate"`
+	DefaultMakingMode        string          `json:"default_making_mode"`
+	DefaultMakingValue       int64           `json:"default_making_value"`
+	RoundOffEnabled          bool            `json:"round_off_enabled"`
+	ReverseRoundTaxableRupee bool            `json:"reverse_round_taxable_rupee"`
+	TemplateVersion          string          `json:"template_version"`
+	TemplateConfig           json.RawMessage `json:"template_config"`
+	UpdatedAt                time.Time       `json:"updated_at"`
+}
+
+type Item struct {
+	ID               string     `json:"id"`
+	BusinessID       string     `json:"business_id"`
+	Name             string     `json:"name"`
+	Hsn              *string    `json:"hsn"`
+	Unit             string     `json:"unit"`
+	Purity           *string    `json:"purity"`
+	GstRate          int32      `json:"gst_rate"`
+	DefaultRatePaise *int64     `json:"default_rate_paise"`
+	Metal            *string    `json:"metal"`
+	MakingMode       *string    `json:"making_mode"`
+	MakingValue      *int64     `json:"making_value"`
+	ArchivedAt       *time.Time `json:"archived_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+type Logo struct {
+	ID          string    `json:"id"`
+	BusinessID  string    `json:"business_id"`
+	Sha256      []byte    `json:"sha256"`
+	ContentType string    `json:"content_type"`
+	Data        []byte    `json:"data"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 type Membership struct {
 	BusinessID string    `json:"business_id"`
 	UserID     string    `json:"user_id"`
 	Role       string    `json:"role"`
 	CreatedAt  time.Time `json:"created_at"`
+}
+
+type MetalRate struct {
+	BusinessID string    `json:"business_id"`
+	Metal      string    `json:"metal"`
+	RatePaise  int64     `json:"rate_paise"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type NumberSeries struct {
+	BusinessID string `json:"business_id"`
+	DocType    string `json:"doc_type"`
+	SeriesKey  int16  `json:"series_key"`
+	NextNo     int32  `json:"next_no"`
+}
+
+type Party struct {
+	ID                  string      `json:"id"`
+	BusinessID          string      `json:"business_id"`
+	Name                string      `json:"name"`
+	Phone               *string     `json:"phone"`
+	Email               *string     `json:"email"`
+	Gstin               *string     `json:"gstin"`
+	Pan                 *string     `json:"pan"`
+	BillAddress         string      `json:"bill_address"`
+	BillStateCode       *string     `json:"bill_state_code"`
+	ShipSameAsBill      bool        `json:"ship_same_as_bill"`
+	ShipName            *string     `json:"ship_name"`
+	ShipAddress         *string     `json:"ship_address"`
+	ShipStateCode       *string     `json:"ship_state_code"`
+	OpeningBalancePaise int64       `json:"opening_balance_paise"`
+	OpeningBalanceDate  pgtype.Date `json:"opening_balance_date"`
+	ArchivedAt          *time.Time  `json:"archived_at"`
+	CreatedAt           time.Time   `json:"created_at"`
+	UpdatedAt           time.Time   `json:"updated_at"`
 }
 
 type Session struct {

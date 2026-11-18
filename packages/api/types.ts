@@ -67,3 +67,80 @@ export interface Page<T> {
   items: T[];
   next_cursor: string | null;
 }
+
+// ── Phase 3: business profile, settings, masters ──────────────────────────
+export type RegistrationType = "regular" | "composition" | "unregistered";
+export type MakingMode = "per_gram" | "flat" | "percent";
+
+export interface Business {
+  id: string;
+  status: BusinessStatus;
+  registration_type: RegistrationType | null;
+  legal_name: string | null;
+  trade_name: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  pincode: string | null;
+  state_code: string | null;
+  phone: string | null;
+  email: string | null;
+  gstin: string | null;
+  udyam_no: string | null;
+  logo_id: string | null;
+  onboarding_step: number;
+  applicant_city: string;
+  applicant_gstin: string | null;
+  applicant_business_name: string;
+  applicant_phone: string;
+}
+
+export interface Settings {
+  invoice_prefix: string;
+  include_fy: boolean;
+  number_min_digits: number;
+  fy_reset: boolean;
+  copies: ("original" | "duplicate" | "triplicate")[];
+  terms: string;
+  declaration: string;
+  jurisdiction: string;
+  signatory_name: string;
+  bank_name: string | null;
+  bank_account_name: string | null;
+  bank_account_no: string | null;
+  bank_ifsc: string | null;
+  bank_branch: string | null;
+  upi_id: string | null;
+  default_gst_rate: number;
+  default_making_mode: MakingMode;
+  default_making_value: number;
+  next_no: number;
+  preview: string;
+}
+
+export interface MetalRate { metal: string; rate_paise: Paise; updated_at?: string }
+export interface State { code: string; name: string; is_ut_without_legislature: boolean }
+
+export interface Party {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  gstin: string | null;
+  pan: string | null;
+  bill_address: string;
+  bill_state_code: string | null;
+  ship_same_as_bill: boolean;
+  opening_balance_paise: Paise;
+  opening_balance_date: string | null;
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  hsn: string | null;
+  unit: "g" | "pcs" | "ct" | "pair" | "set" | "nos";
+  purity: string | null;
+  gst_rate: number;
+  metal: string | null;
+}

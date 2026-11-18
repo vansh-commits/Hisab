@@ -76,6 +76,11 @@ func (s *Server) Routes() http.Handler {
 
 	h("GET /api/admin/auth/google/start", s.googleStart(audAdmin))
 	h("GET /api/admin/auth/google/callback", s.googleCallback(audAdmin))
+	h("GET /api/states", s.listStates)
+	for pattern, fn := range s.tenantRoutes() {
+		h(pattern, fn)
+	}
+
 	for pattern, fn := range s.adminRoutes() {
 		h(pattern, s.session(audAdmin, fn))
 	}
@@ -127,7 +132,9 @@ func recoverer(next http.Handler) http.Handler {
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
+	if w.Header().Get("Cache-Control") == "" {
+		w.Header().Set("Cache-Control", "no-store")
+	}
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
@@ -198,4 +205,35 @@ func audit(ctx context.Context, q *db.Queries, r *http.Request, action, business
 		p.BusinessID, p.EntityID = &businessID, &businessID
 	}
 	return q.Audit(ctx, p)
+}
+
+// tenantRoutes is also used by the tests to check the status gates.
+func (s *Server) tenantRoutes() map[string]http.HandlerFunc {
+	t := s.tenant
+	return map[string]http.HandlerFunc{
+		"GET /api/business":               t(rw, s.getBusiness),
+		"PATCH /api/business":             t(rw, s.patchBusiness),
+		"PUT /api/business/logo":          t(rw, s.putLogo),
+		"DELETE /api/business/logo":       t(rw, s.deleteLogo),
+		"GET /api/logos/{id}":             t(ro, s.getLogo),
+		"GET /api/settings":               t(rw, s.getSettings),
+		"PATCH /api/settings":             t(rw, s.patchSettings),
+		"PUT /api/settings/number-series": t(rw, s.putNumberSeries),
+		"GET /api/metal-rates":            t(rw, s.getRates),
+		"PUT /api/metal-rates":            t(rw, s.putRates),
+		"GET /api/onboarding":             t(rw, s.getOnboarding),
+		"PATCH /api/onboarding":           t("approved", s.patchOnboarding),
+		"POST /api/onboarding/complete":   t("approved", s.completeOnboarding),
+		"GET /api/parties":                t(ro, s.listParties),
+		"POST /api/parties":               t(rw, s.createParty),
+		"POST /api/parties/bulk":          t(rw, s.bulkParties),
+		"GET /api/parties/{id}":           t(ro, s.getParty),
+		"PATCH /api/parties/{id}":         t(rw, s.patchParty),
+		"DELETE /api/parties/{id}":        t(rw, s.deleteParty()),
+		"GET /api/items":                  t(ro, s.listItems),
+		"POST /api/items":                 t(rw, s.createItem),
+		"POST /api/items/bulk":            t(rw, s.bulkItems),
+		"PATCH /api/items/{id}":           t(rw, s.patchItem),
+		"DELETE /api/items/{id}":          t(rw, s.deleteItem()),
+	}
 }

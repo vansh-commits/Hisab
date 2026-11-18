@@ -89,6 +89,7 @@ Every phase ends **deployed** (Vercel + Neon), not just working locally.
 ### Phase 3: Onboarding (≈1.5 weeks)
 - Animated wizard with per-step autosave and resume, logo, numbering preview, settings, rate board, customers and items quick-add, sample bill preview.
 - **Done when:** an approved user finishes on a 360 px phone in under 5 minutes, a reload resumes on the same step, and skipping every optional step still produces a valid business.
+- ✅ 2026-11-18 built: 12-step wizard (`apps/web/app/onboarding/steps.tsx`), business/settings/numbering/rates/logo/parties/items APIs, tests for the full flow, skip-all path, tenant isolation and query scoping. Live 360 px sign-off pending. Deferred: blur-autosave (Next saves), desktop side stepper + live preview panel, sample PDF download (needs the Phase 4 template).
 
 ### Phase 4: Invoicing core (≈2.5 weeks)
 - Parties and items CRUD.

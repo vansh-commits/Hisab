@@ -46,3 +46,4 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
+      - run: node --experimental-strip-types apps/web/app/lib/money.test.ts

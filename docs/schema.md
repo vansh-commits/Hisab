@@ -93,7 +93,7 @@ CREATE TABLE businesses (
   updated_at    timestamptz NOT NULL DEFAULT now(),
 
   CHECK (gstin IS NULL OR state_code IS NULL OR left(gstin, 2) = state_code),
-  CHECK (registration_type IS DISTINCT FROM 'regular' OR gstin IS NOT NULL),
+  CHECK (status <> 'active' OR registration_type IS DISTINCT FROM 'regular' OR gstin IS NOT NULL),  -- only once active: onboarding saves GST status before the GSTIN
   CHECK (status <> 'active' OR onboarded_at IS NOT NULL)
 );
 CREATE INDEX ON businesses (status, applied_at);

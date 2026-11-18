@@ -37,12 +37,10 @@ func (a *application) clean() map[string]string {
 			f[k] = "too long"
 		}
 	}
-	p := strings.NewReplacer(" ", "", "-", "").Replace(a.Phone)
-	p = strings.TrimPrefix(strings.TrimPrefix(p, "+91"), "0")
-	if !mobileRe.MatchString(p) {
+	var ok bool
+	if a.Phone, ok = normMobile(a.Phone); !ok {
 		f["phone"] = "enter a 10-digit mobile number"
 	}
-	a.Phone = "+91" + p
 	if a.GSTIN != nil {
 		g := gstin.Normalize(*a.GSTIN)
 		if g == "" {

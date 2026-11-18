@@ -17,3 +17,12 @@ body {
   font-family: var(--font-sans);
 }
 .money { font-variant-numeric: tabular-nums; }
+
+/* Onboarding: direction-aware step slide (--dir = 1 forward, -1 back), new rows fade in. */
+@keyframes step-in { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 24px)); } }
+@keyframes fade-in { from { opacity: 0; } }
+.step-in { animation: step-in 220ms ease-out; }
+.row-in { animation: fade-in 200ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .step-in, .row-in { animation: fade-in 150ms linear; }
+}
