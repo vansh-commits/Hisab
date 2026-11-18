@@ -80,7 +80,7 @@ Every phase ends **deployed** (Vercel + Neon), not just working locally.
 ### Phase 1: Auth, waitlist, admin approvals (≈1.5 weeks)
 - Google login, sessions, logout, expiry, CSRF, dev-only login.
 - Waitlist form, pending and rejected screens, admin portal (allowlist), approve/reject with note, emails, audit log.
-- **Done when:** a real Google account goes visitor → waitlist → admin approve → email received → approved on next login. Tests cover session expiry, logout, a non-admin hitting every `/api/admin/*` route, and a cross-site POST being rejected.
+- **Done when:** a real Google account goes visitor → waitlist → admin approve → email received → approved on next login. ✅ 2026-11-18: done live on `hisab-zeta-opal.vercel.app` (second Google account → waitlist → admin approve → email → approved screen). Tests cover session expiry, logout, a non-admin hitting every `/api/admin/*` route, and a cross-site POST being rejected.
 
 ### Phase 2: Tax engine, GSTIN, words, formatting (≈1 week, overlaps Phase 1)
 - Pure Go `tax` package (forward, reverse, POS rule, old gold), GSTIN validator, Indian formatting, amount in words.
