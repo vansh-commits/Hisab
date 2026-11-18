@@ -8,6 +8,7 @@ import {
   Outlet,
   RouterProvider,
   useLoaderData,
+  useLocation,
   useNavigate,
   useNavigation,
   useRevalidator,
@@ -16,6 +17,10 @@ import {
   type LoaderFunctionArgs,
 } from "react-router";
 import { api, ApiError, fmtDate } from "./api";
+import { ChartColumn, Inbox, LogOut, ScrollText, Store } from "lucide-react";
+import "@fontsource/mukta/latin-400.css";
+import "@fontsource/mukta/latin-600.css";
+import "@fontsource/cormorant-garamond/latin-600.css";
 import "./style.css";
 
 type AdminMe = { email: string; name: string };
@@ -25,20 +30,22 @@ const meLoader = () => api<AdminMe>("/admin/me");
 function Layout() {
   const me = useLoaderData() as AdminMe;
   const navigate = useNavigate();
+  const nav = useNavigation();
+  const { pathname } = useLocation();
   return (
     <>
       <header>
-        <b>Hisab Admin</b>
-        <nav>
-          <NavLink to="/" end>Queue</NavLink>
-          <NavLink to="/clients">Clients</NavLink>
-          <NavLink to="/metrics">Metrics</NavLink>
-          <NavLink to="/audit">Audit</NavLink>
+        <span className="brand"><span className="mark">H</span> Hisab <em>Admin</em></span>
+        <nav aria-label="Admin">
+          <NavLink to="/" end><Inbox aria-hidden size={16} /> Queue</NavLink>
+          <NavLink to="/clients"><Store aria-hidden size={16} /> Clients</NavLink>
+          <NavLink to="/metrics"><ChartColumn aria-hidden size={16} /> Metrics</NavLink>
+          <NavLink to="/audit"><ScrollText aria-hidden size={16} /> Audit</NavLink>
         </nav>
-        <span className="muted">{me.email}</span>
-        <button onClick={async () => { await api("/admin/auth/logout", { method: "POST" }); navigate(0); }}>Logout</button>
+        <span className="muted who">{me.email}</span>
+        <button className="ghost" onClick={async () => { await api("/admin/auth/logout", { method: "POST" }); navigate(0); }}><LogOut aria-hidden size={16} /> Logout</button>
       </header>
-      <main>{useNavigation().state === "loading" ? <Skeleton /> : <Outlet />}</main>
+      <main>{nav.state === "loading" && nav.location.pathname !== pathname ? <Skeleton /> : <div key={pathname} className={`page ${nav.state === "loading" ? "dim" : ""}`}><Outlet /></div>}</main>
     </>
   );
 }

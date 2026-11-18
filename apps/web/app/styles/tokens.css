@@ -56,3 +56,67 @@ body {
   animation: bone 1.4s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+/* ── App motion system ─────────────────────────────────────────────────────
+   Durations: 150ms (press/hover), 200–260ms (enter), ease-out curves. Never block input. */
+:root { --ease-out: cubic-bezier(.22, 1, .36, 1); }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(10px); } }
+.page-in { animation: page-in 260ms var(--ease-out); }
+.pop-in { animation: pop-in 160ms var(--ease-out); transform-origin: top right; }
+/* Lists and card grids stagger in: put .stagger on the parent. */
+.stagger > * { animation: rise-in 320ms var(--ease-out) both; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; } .stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; } .stagger > *:nth-child(5) { animation-delay: 160ms; }
+.stagger > *:nth-child(6) { animation-delay: 200ms; } .stagger > *:nth-child(n+7) { animation-delay: 240ms; }
+.lift { transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out); }
+.lift:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -12px rgb(154 123 47 / .35); }
+
+button:not(:disabled), summary, [role="tab"], label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) { cursor: pointer; }
+:where(a, button, summary, input, select, textarea):focus-visible { outline: 2px solid var(--color-gold-600); outline-offset: 2px; }
+::selection { background: var(--color-gold-100); }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-in, .pop-in, .stagger > *, .step-in, .row-in { animation: none !important; }
+  .lift, .lift:hover { transition: none; transform: none; }
+}
+
+/* ── Spotlight tour ─────────────────────────────────────────────────────── */
+.tour-spot {
+  box-shadow: 0 0 0 9999px rgb(30 26 22 / .66), 0 0 0 3px var(--color-gold-400), 0 0 28px 6px rgb(201 164 76 / .55);
+  transition: top 420ms var(--ease-out), left 420ms var(--ease-out), width 420ms var(--ease-out), height 420ms var(--ease-out);
+  animation: spot-pulse 1.8s ease-in-out infinite;
+}
+.tour-dim { background: rgb(30 26 22 / .66); animation: fade-in 200ms ease-out; }
+@keyframes spot-pulse { 50% { box-shadow: 0 0 0 9999px rgb(30 26 22 / .66), 0 0 0 3px var(--color-gold-400), 0 0 40px 12px rgb(201 164 76 / .7); } }
+.tour-card { animation: tour-card 380ms var(--ease-out) both; }
+@keyframes tour-card { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+.tour-arrow { stroke-dasharray: 600; stroke-dashoffset: 600; animation: draw 650ms 180ms var(--ease-out) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .tour-spot { transition: none; animation: none; }
+  .tour-card, .tour-dim { animation: none; }
+  .tour-arrow { animation: none; stroke-dashoffset: 0; }
+}
+
+/* ── Landing scroll motion ────────────────────────────────────────────────── */
+.reveal-up { opacity: 0; transform: translateY(28px); transition: opacity 700ms var(--ease-out), transform 700ms var(--ease-out); }
+.reveal-up.is-in { opacity: 1; transform: none; }
+.showcase { transform: rotateX(22deg) scale(.92) translateY(40px); opacity: .4; transform-origin: center top; transition: transform 1100ms var(--ease-out), opacity 900ms var(--ease-out); }
+.showcase.is-in { transform: none; opacity: 1; }
+@keyframes float { 50% { transform: translateY(-10px); } }
+.float { animation: float 6s ease-in-out infinite; }
+.float-chip { animation: float 5s ease-in-out infinite; }
+.hero-glow { background: radial-gradient(closest-side, rgb(201 164 76 / .28), transparent); }
+@keyframes mock-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+.mock-pop { animation: mock-pop 420ms var(--ease-out) both; }
+@keyframes mock-bar { from { transform: scaleY(0); } }
+.mock-bar { transform-origin: bottom; animation: mock-bar 700ms var(--ease-out) both; }
+@keyframes caret { 50% { opacity: 0; } }
+.caret { animation: caret .9s steps(1) infinite; color: var(--color-gold-600); }
+details[open] .faq-a { animation: page-in 260ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) {
+  .reveal-up, .showcase { opacity: 1; transform: none; transition: none; }
+  .float, .float-chip, .mock-pop, .mock-bar, .caret { animation: none; }
+}

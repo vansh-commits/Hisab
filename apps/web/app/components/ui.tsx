@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
 export function Button({ variant = "primary", className = "", ...p }: ComponentProps<"button"> & { variant?: "primary" | "ghost" }) {
-  const base = "min-h-12 rounded-xl px-5 font-semibold transition disabled:opacity-50";
+  const base = "min-h-12 cursor-pointer rounded-xl px-5 font-semibold transition duration-150 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50";
   const look =
     variant === "primary"
       ? "bg-gold-600 text-white hover:bg-maroon-700"
@@ -85,6 +85,6 @@ export function Empty({ children }: { children: ReactNode }) {
 
 // LinkButton styles a react-router <Link> like a Button.
 export const btn = {
-  primary: "inline-flex min-h-12 items-center justify-center rounded-xl bg-gold-600 px-5 font-semibold text-white hover:bg-maroon-700",
-  ghost: "inline-flex min-h-12 items-center justify-center rounded-xl border border-gold-400 px-5 font-semibold text-ink hover:bg-gold-100",
+  primary: "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gold-600 px-5 font-semibold text-white shadow-sm transition duration-150 hover:bg-maroon-700 active:scale-[.98]",
+  ghost: "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-gold-400 bg-white px-5 font-semibold text-ink transition duration-150 hover:bg-gold-100 active:scale-[.98]",
 };

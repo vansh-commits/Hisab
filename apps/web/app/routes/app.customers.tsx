@@ -25,7 +25,7 @@ export default function Customers({ loaderData: { parties, states } }: Route.Com
       <p className="money mb-3 text-sm text-ink/70">Total to collect: <b className="text-ink">{fmtINR(total)}</b></p>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or phone" className="mb-3 min-h-12 w-full rounded-xl border border-gold-400/60 bg-white px-3" />
       {shown.length ? (
-        <ul className="divide-y divide-gold-400/30 overflow-hidden rounded-2xl border border-gold-400/40 bg-white">
+        <ul className="stagger divide-y divide-gold-400/30 overflow-hidden rounded-2xl border border-gold-400/40 bg-white">
           {shown.map((p) => (
             <li key={p.id}>
               <Link to={`/app/customers/${p.id}`} className="flex items-center justify-between px-4 py-3 hover:bg-gold-100/50">

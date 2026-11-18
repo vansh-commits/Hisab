@@ -24,7 +24,7 @@ export default function OldGold({ loaderData: d }: Route.ComponentProps) {
       <p className="mb-4 text-sm text-ink/70">Exchange against a new bill is done on the bill itself. Use this when you only buy old gold (pay cash, or credit the customer's khata).</p>
       {open && <VoucherForm d={d} done={() => setOpen(false)} />}
       {d.vouchers.length ? (
-        <ul className="divide-y divide-gold-400/30 overflow-hidden rounded-2xl border border-gold-400/40 bg-white">
+        <ul className="stagger divide-y divide-gold-400/30 overflow-hidden rounded-2xl border border-gold-400/40 bg-white">
           {d.vouchers.map((v) => (
             <li key={v.id} className="flex items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">

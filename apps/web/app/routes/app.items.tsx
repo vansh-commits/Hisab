@@ -35,7 +35,7 @@ export default function Items({ loaderData: { items, rates } }: Route.ComponentP
       {editing === "new" && <div className="mb-5"><ItemForm rates={rates} onSaved={done} onCancel={() => setEditing(null)} /></div>}
       {items.length > 6 && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search particulars" className="mb-3 min-h-12 w-full rounded-xl border border-gold-400/60 bg-white px-3" />}
       {shown.length ? (
-        <ul className="space-y-2">
+        <ul className="stagger space-y-2">
           {shown.map((i) =>
             editing === i.id ? (
               <li key={i.id}><ItemForm item={i} rates={rates} onSaved={done} onCancel={() => setEditing(null)} /></li>

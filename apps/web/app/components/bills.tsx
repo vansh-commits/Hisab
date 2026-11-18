@@ -15,7 +15,7 @@ export function payState(r: { status: string; grand_total_paise: number; paid_pa
 // BillRows: one tappable row per bill (cards on phone, same markup on desktop).
 export function BillRows({ rows }: { rows: InvoiceRow[] }) {
   return (
-    <ul className="divide-y divide-gold-400/30 overflow-hidden rounded-2xl border border-gold-400/40 bg-white">
+    <ul className="stagger divide-y divide-gold-400/30 overflow-hidden rounded-2xl border border-gold-400/40 bg-white">
       {rows.map((r) => (
         <li key={r.id} className="flex items-center hover:bg-gold-100/50">
           <Link to={r.status === "draft" ? `/app/bills/${r.id}/edit` : `/app/bills/${r.id}`} className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4">
