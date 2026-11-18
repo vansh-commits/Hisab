@@ -1,5 +1,5 @@
 // Package email sends transactional mail via the Gmail API (prod) or logs it (dev).
-// Render/Railway block SMTP, so Gmail goes over HTTPS.
+// Serverless has no reliable SMTP, so Gmail goes over HTTPS.
 package email
 
 import (
@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"mime"
+	"mime/quotedprintable"
 	"net/http"
 	"os"
 	"strings"
@@ -81,12 +82,9 @@ func buildRFC822(from string, m Message) []byte {
 	b.WriteString("From: Hisab <" + from + ">\r\n")
 	b.WriteString("To: " + m.To + "\r\n")
 	b.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", m.Subject) + "\r\n")
-	b.WriteString("MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n")
-	enc := base64.StdEncoding.EncodeToString([]byte(m.Text))
-	for len(enc) > 76 { // RFC 2045 line limit
-		b.WriteString(enc[:76] + "\r\n")
-		enc = enc[76:]
-	}
-	b.WriteString(enc)
+	b.WriteString("MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n")
+	w := quotedprintable.NewWriter(&b) // wraps at 76 chars; plain text reads as plain text to spam filters
+	w.Write([]byte(m.Text))
+	w.Close()
 	return []byte(b.String())
 }

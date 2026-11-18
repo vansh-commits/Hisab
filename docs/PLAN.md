@@ -71,9 +71,9 @@ Every phase ends **deployed** (Vercel + Neon), not just working locally.
 - Repo layout, Makefile, local Postgres, goose + sqlc, CI (Go tests with a Postgres service, typecheck).
 - Deploy a hello API to Vercel (Go preset), both frontends to Vercel with rewrites, and Neon.
 - **Verify:**
-  1. `Set-Cookie` passes through the Vercel rewrite and comes back on the next request.
-  2. Cold-start latency through the rewrite (Go function + Neon wake), and Vercel function usage after 2–3 days.
-  3. A Gmail API send works with the stored refresh token.
+  1. `Set-Cookie` passes through the Vercel rewrite and comes back on the next request. ✅ 2026-11-18: one Vercel project with Services (single origin), `__Host-sid` round-trip OK, cross-site POST → 403.
+  2. Cold-start latency through the rewrite (Go function + Neon wake), and Vercel function usage after 2–3 days. ⏳ 2026-11-18: warm `/api/health` (with DB query) 0.6–0.8 s from India, function in sin1; usage check pending.
+  3. A Gmail API send works with the stored refresh token. ✅ 2026-11-18: `cmd/mailtest` sent locally; the unverified-app consent screen is expected for `gmail.send`.
   4. fpdf renders ₹ and `7,37,864.00` correctly. ✅ 2026-11-17: Noto Sans via `AddUTF8FontFromBytes`, text extractable, byte-identical re-render.
 - **Done when:** all four are checked and written into this doc, and CI is green.
 
