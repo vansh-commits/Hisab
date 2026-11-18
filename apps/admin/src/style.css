@@ -30,3 +30,6 @@ input, select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 
 .detail dt { color: #7a7266; }
 .pager { display: flex; gap: 8px; }
 .login { max-width: 360px; margin: 15vh auto; display: grid; gap: 12px; text-align: center; }
+@keyframes bone { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.bone { border-radius: 8px; background: linear-gradient(90deg, #f6eed9 25%, #fbf3df 50%, #f6eed9 75%) 0 0 / 200% 100%; animation: bone 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .bone { animation: none; } }

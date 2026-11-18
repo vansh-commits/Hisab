@@ -351,7 +351,7 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	b, err := s.Q.MyBusiness(r.Context(), se.UserID)
 	if err == nil {
 		out["business"] = map[string]any{"id": b.ID, "status": b.Status, "onboarding_step": b.OnboardingStep,
-			"trade_name": b.TradeName, "review_note": b.ReviewNote}
+			"trade_name": b.TradeName, "review_note": b.ReviewNote, "logo_id": b.LogoID}
 	} else if !notFound(err) {
 		internalError(w, r, err)
 		return

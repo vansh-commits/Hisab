@@ -48,3 +48,11 @@ body {
   .shimmer { color: var(--color-ink); background: none; }
 }
 @media print { header, nav, .print\:hidden { display: none !important; } }
+
+/* Skeletons: soft gold shimmer while data loads. */
+@keyframes bone { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, var(--color-gold-100) 25%, #fbf3df 50%, var(--color-gold-100) 75%) 0 0 / 200% 100%;
+  animation: bone 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }

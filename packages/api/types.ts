@@ -17,6 +17,7 @@ export interface Me {
     onboarding_step: number;
     trade_name: string | null;
     review_note: string | null;
+    logo_id: string | null;
   } | null;
 }
 

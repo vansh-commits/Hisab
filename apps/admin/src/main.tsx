@@ -9,6 +9,7 @@ import {
   RouterProvider,
   useLoaderData,
   useNavigate,
+  useNavigation,
   useRevalidator,
   useRouteError,
   useSearchParams,
@@ -37,8 +38,19 @@ function Layout() {
         <span className="muted">{me.email}</span>
         <button onClick={async () => { await api("/admin/auth/logout", { method: "POST" }); navigate(0); }}>Logout</button>
       </header>
-      <main><Outlet /></main>
+      <main>{useNavigation().state === "loading" ? <Skeleton /> : <Outlet />}</main>
     </>
+  );
+}
+
+// Skeleton: placeholder table while a page's data loads.
+function Skeleton() {
+  return (
+    <div role="status" aria-label="Loading">
+      <div className="bone" style={{ width: 220, height: 26, marginBottom: 16 }} />
+      <div className="bone" style={{ width: "100%", height: 36, marginBottom: 12 }} />
+      {Array.from({ length: 8 }, (_, i) => <div key={i} className="bone" style={{ width: "100%", height: 44, marginBottom: 6 }} />)}
+    </div>
   );
 }
 
@@ -276,6 +288,7 @@ const router = createBrowserRouter(
       path: "/",
       element: <Layout />,
       loader: meLoader,
+      HydrateFallback: () => <main><Skeleton /></main>,
       errorElement: <ErrorPage />,
       children: [
         { index: true, element: <Queue />, loader: listLoader("/admin/applications", "pending") },

@@ -1,5 +1,6 @@
 import type { Me } from "@hisab/api";
-import { NavLink, Outlet, redirect, useNavigate, useRouteLoaderData } from "react-router";
+import { NavLink, Outlet, redirect, useLocation, useNavigate, useNavigation, useRouteLoaderData } from "react-router";
+import { AppShellSkeleton, PageSkeleton } from "../components/skeleton";
 import { Tour } from "../components/tour";
 import { api, ApiError } from "../lib/api";
 import type { Route } from "./+types/app";
@@ -42,7 +43,34 @@ export function useMe(): Me {
 export const readOnly = (me: Me) => me.business?.status === "suspended";
 
 export function HydrateFallback() {
-  return <p className="p-8 text-center text-ink/60">Loading…</p>;
+  return <AppShellSkeleton path={useLocation().pathname} />;
+}
+
+// Brand: the shop's logo (or initials) × Hisab — the shop comes first, it's their app.
+function Brand({ me, compact = false }: { me: Me; compact?: boolean }) {
+  const b = me.business;
+  const name = b?.trade_name ?? "";
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "H";
+  const box = compact ? "size-9 rounded-lg text-sm" : "size-11 rounded-xl text-base";
+  return (
+    <NavLink to="/app" className="flex min-w-0 items-center gap-2" aria-label={`${name} × Hisab — home`}>
+      {b?.logo_id ? (
+        <img src={`/api/logos/${b.logo_id}`} alt="" className={`${box} shrink-0 border border-gold-400/40 bg-white object-contain p-0.5`} />
+      ) : (
+        <span className={`${box} grid shrink-0 place-items-center bg-gold-600 font-semibold text-white`} aria-hidden>{initials}</span>
+      )}
+      <span className="text-ink/40" aria-hidden>×</span>
+      <span className={`font-display font-semibold text-gold-600 ${compact ? "text-2xl" : "text-3xl"}`}>Hisab</span>
+    </NavLink>
+  );
+}
+
+// Body swaps in a page-shaped skeleton while the next page's data loads; same-page refreshes just dim.
+function Body() {
+  const nav = useNavigation();
+  const here = useLocation();
+  if (nav.state === "loading" && nav.location.pathname !== here.pathname) return <PageSkeleton path={nav.location.pathname} />;
+  return <div className={`transition-opacity ${nav.state === "loading" ? "opacity-60" : ""}`}><Outlet /></div>;
 }
 
 // Sidebar (desktop) groups everything about the business; phones get a bottom tab bar + "More".
@@ -107,7 +135,7 @@ export default function AppLayout({ loaderData: me }: Route.ComponentProps) {
             <button onClick={logout} className="rounded-lg px-3 py-2 hover:bg-gold-100">Logout</button>
           </div>
         </header>
-        <main className="mx-auto max-w-2xl px-4 py-6"><Outlet /></main>
+        <main className="mx-auto max-w-2xl px-4 py-6"><Body /></main>
       </div>
     );
   }
@@ -115,8 +143,8 @@ export default function AppLayout({ loaderData: me }: Route.ComponentProps) {
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[240px_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-gold-400/40 bg-white px-3 py-4 md:flex print:hidden">
-        <NavLink to="/app" className="px-3 font-display text-3xl font-semibold text-gold-600">Hisab</NavLink>
-        <p className="mb-4 truncate px-3 text-sm text-ink/60">{me.business?.trade_name}</p>
+        <div className="px-2"><Brand me={me} /></div>
+        <p className="mb-4 mt-2 truncate px-3 text-sm font-semibold text-ink/70">{me.business?.trade_name}</p>
         <nav className="flex-1 space-y-4 overflow-y-auto">
           {SIDEBAR.map((g, i) => (
             <div key={i}>
@@ -139,7 +167,7 @@ export default function AppLayout({ loaderData: me }: Route.ComponentProps) {
 
       <div className="min-w-0">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-gold-400/40 bg-white/95 px-4 py-2 backdrop-blur md:hidden print:hidden">
-          <NavLink to="/app" className="font-display text-2xl font-semibold text-gold-600">Hisab</NavLink>
+          <Brand me={me} compact />
           <span className="flex-1" />
           <details className="relative">
             <summary className="list-none rounded-lg px-3 py-2 hover:bg-gold-100">More ▾</summary>
@@ -155,7 +183,7 @@ export default function AppLayout({ loaderData: me }: Route.ComponentProps) {
           <p className="bg-maroon-700 px-4 py-2 text-center text-sm text-white">Account suspended — you can view and download old bills, but can't create new ones.</p>
         )}
         <main className="mx-auto max-w-5xl px-4 py-6 pb-24 md:px-8 md:pb-8">
-          <Outlet />
+          <Body />
         </main>
       </div>
 
