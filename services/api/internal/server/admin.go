@@ -212,7 +212,16 @@ func (s *Server) metrics(w http.ResponseWriter, r *http.Request) {
 	for _, c := range counts {
 		byStatus[c.Status] = c.Count
 	}
-	writeJSON(w, 200, map[string]any{"by_status": byStatus, "db_size_bytes": size, "db_cap_bytes": dbCapBytes})
+	issued := map[string]int64{}
+	for _, days := range []int{7, 30} {
+		n, err := s.Q.InvoicesIssuedSince(r.Context(), ptr(time.Now().AddDate(0, 0, -days)))
+		if err != nil {
+			internalError(w, r, err)
+			return
+		}
+		issued[strconv.Itoa(days)+"d"] = n
+	}
+	writeJSON(w, 200, map[string]any{"by_status": byStatus, "db_size_bytes": size, "db_cap_bytes": dbCapBytes, "invoices_issued": issued})
 }
 
 func (s *Server) listAudit(w http.ResponseWriter, r *http.Request) {

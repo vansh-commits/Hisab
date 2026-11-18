@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /admin
+Disallow: /api
+Sitemap: https://hisab-zeta-opal.vercel.app/sitemap.xml

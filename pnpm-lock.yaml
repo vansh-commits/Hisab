@@ -41,6 +41,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource/cormorant-garamond':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/mukta':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@hisab/api':
         specifier: workspace:*
         version: link:../../packages/api
@@ -158,6 +164,12 @@ packages:
 
   '@emnapi/wasi-threads@2.2.0':
     resolution: {integrity: sha512-JP7OYH38Q7+pyTAe14raZHLQIK7BDKbdwji+Xi3pcd/6QkJYQH3SX4wu6EplGrGJWRepoNzedfm0G3B9Z4e9Rw==}
+
+  '@fontsource/cormorant-garamond@5.3.0':
+    resolution: {integrity: sha512-weuGsCirGVWBWqpt6YUp0yLThTe4G8YO45noq8wxeJCRvEpq5lFrxNMFSTxcyOyV5k5otzJ8guDzYegdYlcLMQ==}
+
+  '@fontsource/mukta@5.3.0':
+    resolution: {integrity: sha512-BIM9rx9SmHOcVR8cmOba9LnaFwhfiaFcclwgKV9rH4DIdCmD/tBBhtY02GGukuayxSbqfZ6pXzSO88IigTewDw==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -1051,6 +1063,10 @@ snapshots:
     dependencies:
       tslib: 2.9.1
     optional: true
+
+  '@fontsource/cormorant-garamond@5.3.0': {}
+
+  '@fontsource/mukta@5.3.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

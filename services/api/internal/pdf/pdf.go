@@ -25,6 +25,7 @@ func newDoc(created time.Time) *fpdf.Fpdf {
 	f.SetCreationDate(created)
 	f.SetModificationDate(created)
 	f.SetCompression(true)
+	f.SetCatalogSort(true) // fonts/images in a fixed order, so output is byte-identical
 	f.SetCreator("Hisab", true)
 	return f
 }

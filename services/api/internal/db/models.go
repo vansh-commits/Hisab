@@ -95,6 +95,50 @@ type BusinessSetting struct {
 	UpdatedAt                time.Time       `json:"updated_at"`
 }
 
+type Invoice struct {
+	ID                string          `json:"id"`
+	BusinessID        string          `json:"business_id"`
+	DocType           string          `json:"doc_type"`
+	Status            string          `json:"status"`
+	SeriesKey         *int16          `json:"series_key"`
+	InvoiceNo         *string         `json:"invoice_no"`
+	InvoiceDate       pgtype.Date     `json:"invoice_date"`
+	Fy                int16           `json:"fy"`
+	PartyID           *string         `json:"party_id"`
+	BuyerName         string          `json:"buyer_name"`
+	BuyerGstin        *string         `json:"buyer_gstin"`
+	OriginalInvoiceID *string         `json:"original_invoice_id"`
+	Input             json.RawMessage `json:"input"`
+	Snapshot          json.RawMessage `json:"snapshot"`
+	TemplateVersion   *string         `json:"template_version"`
+	EngineVersion     *int16          `json:"engine_version"`
+	PlaceOfSupply     *string         `json:"place_of_supply"`
+	SupplyType        *string         `json:"supply_type"`
+	TaxablePaise      int64           `json:"taxable_paise"`
+	CgstPaise         int64           `json:"cgst_paise"`
+	SgstPaise         int64           `json:"sgst_paise"`
+	IgstPaise         int64           `json:"igst_paise"`
+	TcsRate           int32           `json:"tcs_rate"`
+	TcsPaise          int64           `json:"tcs_paise"`
+	RoundOffPaise     int64           `json:"round_off_paise"`
+	GrandTotalPaise   int64           `json:"grand_total_paise"`
+	OldGoldPaise      int64           `json:"old_gold_paise"`
+	NetPayablePaise   int64           `json:"net_payable_paise"`
+	Irn               *string         `json:"irn"`
+	IrnAckNo          *string         `json:"irn_ack_no"`
+	IrnAckAt          *time.Time      `json:"irn_ack_at"`
+	IrnSignedQr       *string         `json:"irn_signed_qr"`
+	EwayBillNo        *string         `json:"eway_bill_no"`
+	CancelReason      *string         `json:"cancel_reason"`
+	CreatedBy         *string         `json:"created_by"`
+	IssuedBy          *string         `json:"issued_by"`
+	CancelledBy       *string         `json:"cancelled_by"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+	IssuedAt          *time.Time      `json:"issued_at"`
+	CancelledAt       *time.Time      `json:"cancelled_at"`
+}
+
 type Item struct {
 	ID               string     `json:"id"`
 	BusinessID       string     `json:"business_id"`
@@ -161,6 +205,48 @@ type Party struct {
 	ArchivedAt          *time.Time  `json:"archived_at"`
 	CreatedAt           time.Time   `json:"created_at"`
 	UpdatedAt           time.Time   `json:"updated_at"`
+}
+
+type Payment struct {
+	ID          string      `json:"id"`
+	BusinessID  string      `json:"business_id"`
+	PartyID     *string     `json:"party_id"`
+	InvoiceID   *string     `json:"invoice_id"`
+	VoucherID   *string     `json:"voucher_id"`
+	ReceivedOn  pgtype.Date `json:"received_on"`
+	AmountPaise int64       `json:"amount_paise"`
+	Mode        string      `json:"mode"`
+	Reference   *string     `json:"reference"`
+	Note        *string     `json:"note"`
+	CreatedBy   *string     `json:"created_by"`
+	CreatedAt   time.Time   `json:"created_at"`
+	VoidedAt    *time.Time  `json:"voided_at"`
+	VoidReason  *string     `json:"void_reason"`
+}
+
+type PurchaseVoucher struct {
+	ID            string          `json:"id"`
+	BusinessID    string          `json:"business_id"`
+	Status        string          `json:"status"`
+	SeriesKey     int16           `json:"series_key"`
+	VoucherNo     string          `json:"voucher_no"`
+	VoucherDate   pgtype.Date     `json:"voucher_date"`
+	Fy            int16           `json:"fy"`
+	PartyID       *string         `json:"party_id"`
+	SellerName    string          `json:"seller_name"`
+	SellerKind    string          `json:"seller_kind"`
+	Settlement    string          `json:"settlement"`
+	InvoiceID     *string         `json:"invoice_id"`
+	PaidMode      *string         `json:"paid_mode"`
+	Snapshot      json.RawMessage `json:"snapshot"`
+	NetWeightMg   int64           `json:"net_weight_mg"`
+	TotalPaise    int64           `json:"total_paise"`
+	RoundOffPaise int64           `json:"round_off_paise"`
+	CancelReason  *string         `json:"cancel_reason"`
+	CreatedBy     *string         `json:"created_by"`
+	CreatedAt     time.Time       `json:"created_at"`
+	CancelledAt   *time.Time      `json:"cancelled_at"`
+	CancelledBy   *string         `json:"cancelled_by"`
 }
 
 type Session struct {

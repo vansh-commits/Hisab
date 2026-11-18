@@ -210,7 +210,7 @@ function ClientDetail() {
 }
 
 function Metrics() {
-  const m = useLoaderData() as { by_status: Record<string, number>; db_size_bytes: number; db_cap_bytes: number };
+  const m = useLoaderData() as { by_status: Record<string, number>; db_size_bytes: number; db_cap_bytes: number; invoices_issued?: Record<string, number> };
   const pct = ((m.db_size_bytes / m.db_cap_bytes) * 100).toFixed(1);
   return (
     <>
@@ -219,6 +219,8 @@ function Metrics() {
         {["pending", "approved", "active", "suspended", "rejected"].map((s) => (
           <div key={s} className="card"><div className="muted">{s}</div><b>{m.by_status[s] ?? 0}</b></div>
         ))}
+        <div className="card"><div className="muted">Bills issued (7 d)</div><b>{m.invoices_issued?.["7d"] ?? 0}</b></div>
+        <div className="card"><div className="muted">Bills issued (30 d)</div><b>{m.invoices_issued?.["30d"] ?? 0}</b></div>
         <div className="card"><div className="muted">DB size</div><b>{(m.db_size_bytes / 2 ** 20).toFixed(1)} MB</b><div className="muted">{pct}% of 1 GB</div></div>
       </div>
     </>

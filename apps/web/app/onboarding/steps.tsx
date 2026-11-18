@@ -1,7 +1,7 @@
 import type { Business, Item, MakingMode, Me, MetalRate, Party, Settings, State } from "@hisab/api";
 import { createContext, use, useState, type ComponentProps, type FormEvent, type ReactNode } from "react";
 import { useRevalidator } from "react-router";
-import { Field } from "../components/ui";
+import { Check, Field, Select, TextArea } from "../components/ui";
 import { api, ApiError } from "../lib/api";
 import { gstinProblem } from "../lib/gstin";
 import { docNumber, fmtINR, plain, toMilliPct, toPaise } from "../lib/money";
@@ -18,7 +18,6 @@ export type StepProps = {
 
 // ── small building blocks ────────────────────────────────────────────────
 
-const box = "w-full min-h-12 rounded-xl border border-gold-400/60 bg-white px-3 py-3 outline-none focus:ring-2 focus:ring-gold-400";
 
 function Heading({ title, sub }: { title: string; sub?: ReactNode }) {
   return (
@@ -43,34 +42,6 @@ function StepForm({ onSave, children }: { onSave?: (f: FormData) => Promise<unkn
     <form id="step-form" onSubmit={submit} className="space-y-4" noValidate>
       {children}
     </form>
-  );
-}
-
-function Select({ label, error, children, ...p }: ComponentProps<"select"> & { label: string; error?: string }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium">{label}</span>
-      <select className={box} {...p}>{children}</select>
-      {error && <span className="mt-1 block text-sm text-maroon-700">{error}</span>}
-    </label>
-  );
-}
-
-function TextArea({ label, ...p }: ComponentProps<"textarea"> & { label: string }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium">{label}</span>
-      <textarea className={box} rows={3} {...p} />
-    </label>
-  );
-}
-
-function Check({ label, ...p }: ComponentProps<"input"> & { label: ReactNode }) {
-  return (
-    <label className="flex min-h-12 items-center gap-3 rounded-xl border border-gold-400/40 bg-white px-3">
-      <input type="checkbox" className="size-5 accent-gold-600" {...p} />
-      <span>{label}</span>
-    </label>
   );
 }
 
@@ -199,16 +170,24 @@ function Address({ d, me, err }: StepProps) {
   );
 }
 
-// Logo: shrink in the browser to ≤512 px WebP under 200 KB, upload immediately.
+// Logo: shrink in the browser to ≤512 px, PNG (keeps transparency) or JPEG on white, under 200 KB.
+// PNG/JPEG only: the PDF library can't embed WebP.
 async function shrink(file: File): Promise<Blob> {
   const bmp = await createImageBitmap(file);
   const k = Math.min(1, 512 / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas");
   c.width = Math.round(bmp.width * k);
   c.height = Math.round(bmp.height * k);
-  c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = (type: string, q?: number) => new Promise<Blob | null>((r) => c.toBlob(r, type, q));
+  const png = await blob("image/png");
+  if (png && png.size <= 200 * 1024) return png;
+  ctx.globalCompositeOperation = "destination-over";
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, c.width, c.height);
   for (const q of [0.9, 0.75, 0.5]) {
-    const b = await new Promise<Blob | null>((r) => c.toBlob(r, "image/webp", q));
+    const b = await blob("image/jpeg", q);
     if (b && b.size <= 200 * 1024) return b;
   }
   throw new Error("This image is too large even after resizing");
@@ -249,7 +228,7 @@ function Logo({ d }: StepProps) {
       </div>
       <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-dashed border-gold-600 bg-white font-semibold text-gold-600">
         {d.biz.logo_id ? "Change logo" : "Choose logo image"}
-        <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
+        <input type="file" accept="image/*" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
       </label>
       {d.biz.logo_id && (
         <button type="button" onClick={remove} className="text-sm text-maroon-700 underline">

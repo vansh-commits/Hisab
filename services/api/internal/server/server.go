@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -35,6 +36,9 @@ type Server struct {
 	Q    *db.Queries
 	Cfg  Config
 	Send email.Send
+
+	mu     sync.Mutex
+	states map[string]db.State // static reference data, loaded once
 }
 
 func New(pool *pgxpool.Pool, cfg Config, send email.Send) *Server {
@@ -235,5 +239,35 @@ func (s *Server) tenantRoutes() map[string]http.HandlerFunc {
 		"POST /api/items/bulk":            t(rw, s.bulkItems),
 		"PATCH /api/items/{id}":           t(rw, s.patchItem),
 		"DELETE /api/items/{id}":          t(rw, s.deleteItem()),
+
+		"GET /api/parties/{id}/ledger": t(ro, s.partyLedger),
+		"GET /api/parties/balances":    t(ro, s.partyBalances),
+
+		"GET /api/invoices":              t(ro, s.listInvoices),
+		"POST /api/invoices":             t(act, s.createInvoice),
+		"POST /api/invoices/compute":     t(act, s.computeInvoice),
+		"GET /api/invoices/{id}":         t(ro, s.getInvoice),
+		"PUT /api/invoices/{id}":         t(act, s.updateInvoice),
+		"DELETE /api/invoices/{id}":      t(act, s.deleteInvoice),
+		"POST /api/invoices/{id}/issue":  t(act, s.issueInvoice),
+		"POST /api/invoices/{id}/cancel": t(act, s.cancelInvoice),
+		"GET /api/invoices/{id}/pdf":     t(ro, s.invoicePDF),
+
+		"GET /api/purchase-vouchers":              t(ro, s.listVouchers),
+		"POST /api/purchase-vouchers":             t(act, s.createVoucher),
+		"POST /api/purchase-vouchers/compute":     t(act, s.computeVoucher),
+		"GET /api/purchase-vouchers/{id}":         t(ro, s.getVoucher),
+		"GET /api/purchase-vouchers/{id}/pdf":     t(ro, s.voucherPDF),
+		"POST /api/purchase-vouchers/{id}/cancel": t(act, s.cancelVoucher),
+
+		"GET /api/payments":            t(ro, s.listPayments),
+		"POST /api/payments":           t(act, s.createPayment),
+		"POST /api/payments/{id}/void": t(act, s.voidPayment),
+
+		"GET /api/reports/sales-register":    t(ro, s.salesRegister),
+		"GET /api/reports/gst-summary":       t(ro, s.gstSummary),
+		"GET /api/reports/hsn-summary":       t(ro, s.hsnSummary),
+		"GET /api/reports/old-gold-register": t(ro, s.oldGoldRegister),
+		"GET /api/home":                      t(ro, s.home),
 	}
 }

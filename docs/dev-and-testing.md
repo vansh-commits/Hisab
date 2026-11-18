@@ -99,3 +99,22 @@ The Gmail driver is about 40 lines: refresh the access token via `x/oauth2`, bui
 | Frontend | `tsc --noEmit`. One Playwright happy path (dev login → onboarding → Bill B with old gold → issue → PDF downloads → record payment) is **optional for MVP** and added before the first paying customer. | |
 
 **CI** (`.github/workflows/ci.yml`, GitHub `postgres:17` service): `go vet`, `staticcheck`, `go test ./...` (incl. 60 s fuzz), `sqlc diff`, `pnpm -r typecheck`.
+
+## 8. Backups and restore drill
+
+**Nightly:** `.github/workflows/backup.yml` runs at 02:00 IST. It `pg_dump`s Neon, checks that the archive contains the `invoices` table, encrypts it with [age](https://age-encryption.org), and uploads it as a release in a **private** repo. It keeps 30 daily and 12 monthly backups.
+
+**One-time setup (you):**
+1. Create a private repo, e.g. `hisab-backups`, with one commit (a README).
+2. Run `age-keygen -o hisab-backup-key.txt` locally (`brew install age`). Store the file in your password manager, **not** in git. The `# public key: age1…` line is the public key.
+3. Create a fine-grained GitHub token with **Contents: read and write** on `hisab-backups` only.
+4. In the Hisab repo, add the secrets `NEON_DIRECT_URL` (Neon's *direct*, non-pooled URL), `AGE_PUBLIC_KEY` (`age1…`) and `BACKUP_REPO_TOKEN`, plus the variable `BACKUP_REPO=<owner>/hisab-backups`.
+5. Actions → backup → **Run workflow** once, and check that a `daily-…` release appears.
+
+**Monthly restore drill (≈10 minutes):**
+1. Download the latest `hisab-YYYY-MM-DD.dump.age` from the backups repo.
+2. Run `age -d -i hisab-backup-key.txt -o hisab.dump hisab-YYYY-MM-DD.dump.age`.
+3. In Neon, create a branch named `restore-drill` from a **past** point in time (or an empty one) and copy its direct URL.
+4. Run `pg_restore --no-owner --no-privileges --clean --if-exists -d "<branch URL>" hisab.dump`.
+5. Spot-check with `psql "<branch URL>" -c "select count(*), max(invoice_no) from invoices where status='issued'"`. The figures should match production as of the backup time.
+6. Delete the branch, then write the date and the result in `docs/PLAN.md` (Phase 6).

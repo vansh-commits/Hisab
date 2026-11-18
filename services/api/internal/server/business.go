@@ -21,8 +21,9 @@ import (
 
 // Status sets for tenant(): rw may edit; ro may also be suspended (read-only access to old data).
 const (
-	rw = "approved active"
-	ro = "approved active suspended"
+	rw  = "approved active"
+	act = "active" // billing needs a finished setup
+	ro  = "approved active suspended"
 )
 
 type bizKey struct{}
@@ -209,7 +210,7 @@ func (s *Server) putLogo(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 256<<10)
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		apiError(w, 422, "validation_failed", "Upload a PNG, JPEG or WebP under 200 KB", map[string]string{"file": "required"})
+		apiError(w, 422, "validation_failed", "Upload a PNG or JPEG under 200 KB", map[string]string{"file": "required"})
 		return
 	}
 	data, err := io.ReadAll(io.LimitReader(file, 204801))
@@ -218,8 +219,8 @@ func (s *Server) putLogo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ct := http.DetectContentType(data)
-	if !slices.Contains([]string{"image/png", "image/jpeg", "image/webp"}, ct) {
-		apiError(w, 422, "validation_failed", "Upload a PNG, JPEG or WebP image", map[string]string{"file": "unsupported type"})
+	if !slices.Contains([]string{"image/png", "image/jpeg"}, ct) {
+		apiError(w, 422, "validation_failed", "Upload a PNG or JPEG image", map[string]string{"file": "unsupported type"})
 		return
 	}
 	sum := sha256.Sum256(data)
@@ -333,7 +334,6 @@ func (s *Server) patchSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 // putNumberSeries sets the next invoice number for the current series ("purani bill book ka agla number").
-// ponytail: Phase 4 adds the "no invoice issued in this series yet" guard once the invoices table exists.
 func (s *Server) putNumberSeries(w http.ResponseWriter, r *http.Request) {
 	b := bizFrom(r)
 	var in struct {
@@ -348,6 +348,13 @@ func (s *Server) putNumberSeries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fy := fyStart(time.Now())
+	if used, err := s.Q.IssuedInSeries(r.Context(), db.IssuedInSeriesParams{BusinessID: b.ID, SeriesKey: ptr(seriesKey(cur.BusinessSetting, fy))}); err != nil {
+		internalError(w, r, err)
+		return
+	} else if used {
+		apiError(w, 409, "series_in_use", "Bills are already issued in this year's series; the number can't change now", nil)
+		return
+	}
 	if in.StartingNo < 1 || in.StartingNo > 99999999 {
 		invalid(w, map[string]string{"starting_no": "must be between 1 and 99999999"})
 		return

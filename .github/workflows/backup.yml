@@ -1,0 +1,36 @@
+# Nightly encrypted Postgres backup → GitHub release in a private repo (30 daily + 12 monthly).
+# Needs: secrets NEON_DIRECT_URL, AGE_PUBLIC_KEY, BACKUP_REPO_TOKEN; variable BACKUP_REPO (owner/hisab-backups).
+# Restore steps: docs/dev-and-testing.md "Backups and restore drill".
+name: backup
+on:
+  schedule: [{ cron: "30 20 * * *" }] # 02:00 IST
+  workflow_dispatch:
+permissions: {}
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Dump, check, encrypt, upload, prune
+        env:
+          DB: ${{ secrets.NEON_DIRECT_URL }}
+          AGE_RECIPIENT: ${{ secrets.AGE_PUBLIC_KEY }}
+          GH_TOKEN: ${{ secrets.BACKUP_REPO_TOKEN }}
+          REPO: ${{ vars.BACKUP_REPO }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq age >/dev/null
+          major=$(docker run --rm postgres:17 psql "$DB" -Atc "show server_version_num" | cut -c1-2)
+          ts=$(date -u +%Y-%m-%d)
+          docker run --rm postgres:"$major" pg_dump --format=custom --no-owner --no-privileges "$DB" > hisab.dump
+          # Sanity check: the archive lists the core tables before we keep it.
+          docker run --rm -i postgres:"$major" pg_restore --list < hisab.dump | grep -q 'TABLE DATA public invoices'
+          age -r "$AGE_RECIPIENT" -o "hisab-$ts.dump.age" hisab.dump
+          rm hisab.dump
+          gh release create "daily-$ts" "hisab-$ts.dump.age" -R "$REPO" -t "daily-$ts" -n "Nightly backup ($(du -h hisab-$ts.dump.age | cut -f1))"
+          if [ "$(date -u +%d)" = "01" ]; then
+            gh release create "monthly-$(date -u +%Y-%m)" "hisab-$ts.dump.age" -R "$REPO" -n "Monthly backup"
+          fi
+          prune() { gh release list -R "$REPO" -L 500 --json tagName -q '.[].tagName' | grep "^$1-" | sort -r | tail -n +"$2" | xargs -r -I{} gh release delete {} -R "$REPO" -y --cleanup-tag; }
+          prune daily 31
+          prune monthly 13

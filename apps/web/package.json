@@ -8,6 +8,8 @@
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/mukta": "^5.3.0",
     "@hisab/api": "workspace:*",
     "isbot": "^5",
     "react": "^19.3.1",

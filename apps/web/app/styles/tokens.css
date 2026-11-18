@@ -26,3 +26,25 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .step-in, .row-in { animation: fade-in 150ms linear; }
 }
+
+/* Landing: CSS-only motion (no animation library on the marketing page). */
+@keyframes rise { from { opacity: 0; transform: translateY(16px) rotate(-1deg); } }
+@keyframes shimmer { 0%, 70% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes glow { 50% { opacity: .55; } }
+.rise { animation: rise 700ms 150ms ease-out both; }
+.reveal { animation: rise 600ms ease-out both; animation-timeline: view(); animation-range: entry 0% entry 60%; }
+.shimmer {
+  background: linear-gradient(100deg, var(--color-ink) 40%, var(--color-gold-400) 50%, var(--color-ink) 60%) 0 0 / 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shimmer 3.5s 1s ease-in-out 2;
+}
+.glow::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: radial-gradient(closest-side, var(--color-gold-100), transparent);
+  animation: glow 4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise, .reveal, .shimmer, .glow::before { animation: none; }
+  .shimmer { color: var(--color-ink); background: none; }
+}
+@media print { header, nav, .print\:hidden { display: none !important; } }

@@ -101,6 +101,7 @@ Every phase ends **deployed** (Vercel + Neon), not just working locally.
   - 50 concurrent issues produce numbers 1..50.
   - Editing a party or settings after issue leaves old PDFs unchanged.
   - The tenant isolation test passes.
+- ✅ 2026-11-18 built: invoices API (compute, drafts, issue fast path, cancel, PDF `classic-v1`), new-bill screen (Rate se / Total se, live totals, item chips, buyer search), bills list, bill view with share. Tests: Bill A/B, totals_mismatch burns no number, 50 concurrent issues → gapless, identical PDF bytes after settings edits, DB immutability trigger, tenant isolation. Live UI sign-off pending. Deferred: Go `cmd/seed` with sample bills (tests cover the flows), golden PDF hashes (byte-equality test instead).
 
 ### Phase 5: Old gold, payments, ledger, reports (≈2 weeks)
 - Old gold exchange on the bill, standalone purchase vouchers, payments (full/partial, cash/UPI/bank/cheque, void), party ledger, and reports: sales register, GST summary, HSN summary, old gold register. Home summary.
@@ -109,10 +110,12 @@ Every phase ends **deployed** (Vercel + Neon), not just working locally.
   - Ledger = opening balance + invoices − payments − vouchers.
   - Report totals reconcile with the seed data.
   - Overpayment is rejected.
+- ✅ 2026-11-18 built: exchange on the bill + exchange voucher/credit in the issue tx, standalone vouchers (paid / on account), payments + void, party ledger (running balance, ?from rolls into opening), customers with balances, four reports with CSV, home summary, rates board, settings (reuses onboarding forms). Tests cover the exchange vector, ledger identity, overpayment, reports reconcile, cancel cascades to the exchange voucher.
 
 ### Phase 6: Hardening and launch (≈1 week)
 - Nightly backup plus a **successful restore drill**, error logging, landing page polish, a native-speaker review of the Hinglish copy, a **CA review** (see Risks), privacy and terms pages.
 - **Done when:** last night's backup restores into a fresh Neon branch, the CA signs off, and the first 2–3 jewellers are onboarded.
+- ✅ 2026-11-18 built: `backup.yml` (nightly pg_dump → age → private repo releases, 30 daily + 12 monthly), restore drill in `dev-and-testing.md` §8, root error boundary + server panic recovery, full landing page (CSS-only motion), SEO (meta, OG, JSON-LD, sitemap, robots), self-hosted fonts, final privacy/terms copy. **Owner tasks left:** backup secrets + first restore drill, CA review, Hinglish copy review, onboard first jewellers. Note: `/` ships ≈120 KB gz JS (React + router), above the 90 KB target.
 
 ### Later (post-MVP, in order)
 1. Credit/debit notes (schema ready)

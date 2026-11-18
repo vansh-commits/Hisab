@@ -183,12 +183,12 @@ func TestOnboardingMinimal(t *testing.T) {
 
 // Every query touching a tenant table must filter on business_id (schema.md "Tenant isolation").
 func TestQueriesScopedToTenant(t *testing.T) {
-	tenant := regexp.MustCompile(`\b(logos|business_settings|number_series|metal_rates|parties|items)\b`)
+	tenant := regexp.MustCompile(`\b(logos|business_settings|number_series|metal_rates|parties|items|invoices|purchase_vouchers|payments)\b`)
 	files, _ := filepath.Glob("../../queries/*.sql")
 	for _, f := range files {
 		src, _ := os.ReadFile(f)
 		for _, q := range strings.Split(string(src), "-- name: ")[1:] {
-			if tenant.MatchString(q) && !strings.Contains(q, "business_id") {
+			if tenant.MatchString(q) && !strings.Contains(q, "business_id") && !strings.Contains(q, "cross-tenant") {
 				t.Errorf("%s: query not scoped to business_id:\n%s", f, q)
 			}
 		}
