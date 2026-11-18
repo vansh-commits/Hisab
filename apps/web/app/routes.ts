@@ -4,5 +4,10 @@ export default [
   index("routes/home.tsx"),
   route("privacy", "routes/privacy.tsx"),
   route("terms", "routes/terms.tsx"),
-  route("debug", "routes/debug.tsx"), // ponytail: Phase 0 only, delete after checks are recorded
+  route("login", "routes/login.tsx"),
+  route("app", "routes/app.tsx", [
+    index("routes/app.home.tsx"),
+    route("waitlist", "routes/app.waitlist.tsx"),
+    route("onboarding", "routes/app.onboarding.tsx"),
+  ]),
 ] satisfies RouteConfig;

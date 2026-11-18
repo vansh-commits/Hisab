@@ -3,7 +3,7 @@ API := services/api
 -include .env
 export
 
-.PHONY: db dev migrate gen test fuzz
+.PHONY: db dev migrate seed reset gen test fuzz
 
 # Postgres 17 in Docker on :5433 (5432 is often taken). No compose file.
 db:
@@ -21,6 +21,15 @@ dev:
 
 migrate:
 	cd $(API) && go run ./cmd/api -migrate-only
+
+# Seed and reset only ever touch the local docker DB.
+seed:
+	docker exec -i hisab-pg psql -q -U postgres -d hisab -v ON_ERROR_STOP=1 < $(API)/seed/seed.sql
+
+reset:
+	docker exec hisab-pg dropdb -U postgres --force --if-exists hisab
+	docker exec hisab-pg createdb -U postgres hisab
+	$(MAKE) migrate seed
 
 gen:
 	cd $(API) && sqlc generate

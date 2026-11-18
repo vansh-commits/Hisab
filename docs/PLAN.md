@@ -45,11 +45,11 @@
 | Area | Decision | Why |
 |---|---|---|
 | Frontend | React 19 + TypeScript + Vite. `apps/web` uses **React Router v8 framework mode** (`ssr:false`, `prerender` marketing routes). `apps/admin` is a plain Vite SPA. | Static SEO HTML for `/`, SPA for the dashboard. Static output deploys anywhere. |
-| UI | Tailwind CSS v4, Radix primitives, **Motion**, react-hook-form + zod, TanStack Query | Premium animation and accessible components without heavy runtime. |
+| UI | Tailwind CSS v4, Radix primitives, **Motion**, react-hook-form + zod, React Router loaders | Premium animation and accessible components without heavy runtime. |
 | Fonts | Cormorant Garamond (display), Tiro Devanagari Hindi (Hindi display), Mukta (UI) | Elegant, with good Devanagari for the Hinglish marketing copy. |
 | Go HTTP | stdlib `net/http` ServeMux + Go 1.25 `http.CrossOriginProtection` | No router dependency. CSRF from the stdlib. |
 | DB access | pgx v5 + sqlc. **goose** migrations, embedded, run on API boot | Type-safe SQL. Single instance, so migrating on boot is safe. |
-| Auth | Google OIDC (go-oidc + x/oauth2, PKCE, nonce, `email_verified`), Postgres sessions, `__Host-` cookies | As requested. Providers are pluggable for phone OTP later. |
+| Auth | Google OIDC (x/oauth2 code flow, PKCE, nonce, `email_verified`; ID token read from the TLS token response), Postgres sessions, `__Host-` cookies | As requested. Providers are pluggable for phone OTP later. |
 | Cookies | **One origin** via Vercel Services: the API is served under `/api/*` on the app's own domain, so cookies are first-party. | Solves the third-party cookie problem without a domain or rewrites. |
 | Email | `EmailSender` with two drivers: **Gmail API** (HTTPS) and **console** | Serverless has no SMTP worth relying on, and there's no domain for Resend/Brevo. |
 | Tax engine | **Go only.** The UI calls `POST /api/invoices/compute` (debounced) for live totals. | One implementation, so there's nothing to keep in sync. |

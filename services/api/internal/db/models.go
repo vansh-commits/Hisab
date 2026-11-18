@@ -4,8 +4,98 @@
 
 package db
 
+import (
+	"encoding/json"
+	"net/netip"
+	"time"
+)
+
+type AuditLog struct {
+	ID          int64           `json:"id"`
+	At          time.Time       `json:"at"`
+	ActorType   string          `json:"actor_type"`
+	ActorUserID *string         `json:"actor_user_id"`
+	ActorEmail  *string         `json:"actor_email"`
+	BusinessID  *string         `json:"business_id"`
+	Action      string          `json:"action"`
+	EntityType  *string         `json:"entity_type"`
+	EntityID    *string         `json:"entity_id"`
+	Data        json.RawMessage `json:"data"`
+	Ip          *netip.Addr     `json:"ip"`
+}
+
+type AuthIdentity struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Provider  string    `json:"provider"`
+	Subject   string    `json:"subject"`
+	Email     *string   `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type Business struct {
+	ID                    string     `json:"id"`
+	Status                string     `json:"status"`
+	ApplicantBusinessName string     `json:"applicant_business_name"`
+	ApplicantOwnerName    string     `json:"applicant_owner_name"`
+	ApplicantPhone        string     `json:"applicant_phone"`
+	ApplicantCity         string     `json:"applicant_city"`
+	ApplicantGstin        *string    `json:"applicant_gstin"`
+	AppliedAt             time.Time  `json:"applied_at"`
+	ReviewedAt            *time.Time `json:"reviewed_at"`
+	ReviewedBy            *string    `json:"reviewed_by"`
+	ReviewNote            *string    `json:"review_note"`
+	RegistrationType      *string    `json:"registration_type"`
+	LegalName             *string    `json:"legal_name"`
+	TradeName             *string    `json:"trade_name"`
+	AddressLine1          *string    `json:"address_line1"`
+	AddressLine2          *string    `json:"address_line2"`
+	City                  *string    `json:"city"`
+	Pincode               *string    `json:"pincode"`
+	StateCode             *string    `json:"state_code"`
+	Phone                 *string    `json:"phone"`
+	Email                 *string    `json:"email"`
+	Gstin                 *string    `json:"gstin"`
+	UdyamNo               *string    `json:"udyam_no"`
+	LogoID                *string    `json:"logo_id"`
+	OnboardingStep        int16      `json:"onboarding_step"`
+	OnboardedAt           *time.Time `json:"onboarded_at"`
+	SuspendedAt           *time.Time `json:"suspended_at"`
+	SuspendReason         *string    `json:"suspend_reason"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
+}
+
+type Membership struct {
+	BusinessID string    `json:"business_id"`
+	UserID     string    `json:"user_id"`
+	Role       string    `json:"role"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type Session struct {
+	TokenHash         []byte      `json:"token_hash"`
+	UserID            string      `json:"user_id"`
+	Audience          string      `json:"audience"`
+	CreatedAt         time.Time   `json:"created_at"`
+	LastSeenAt        time.Time   `json:"last_seen_at"`
+	ExpiresAt         time.Time   `json:"expires_at"`
+	AbsoluteExpiresAt time.Time   `json:"absolute_expires_at"`
+	Ip                *netip.Addr `json:"ip"`
+	UserAgent         *string     `json:"user_agent"`
+}
+
 type State struct {
-	Code                   string
-	Name                   string
-	IsUtWithoutLegislature bool
+	Code                   string `json:"code"`
+	Name                   string `json:"name"`
+	IsUtWithoutLegislature bool   `json:"is_ut_without_legislature"`
+}
+
+type User struct {
+	ID          string     `json:"id"`
+	Email       *string    `json:"email"`
+	Name        string     `json:"name"`
+	AvatarUrl   *string    `json:"avatar_url"`
+	CreatedAt   time.Time  `json:"created_at"`
+	LastLoginAt *time.Time `json:"last_login_at"`
 }

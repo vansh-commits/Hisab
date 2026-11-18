@@ -9,7 +9,7 @@
 | HTTP | stdlib `net/http` ServeMux | Patterns like `mux.Handle("POST /api/invoices/{id}/issue", …)`. Middleware is plain `func(http.Handler) http.Handler`. Route groups: `/api/auth/`, `/api/` (tenant), `/api/admin/`. |
 | DB | `jackc/pgx/v5` (pgxpool, MaxConns 4) + `sqlc` | Neon **pooled** URL for queries, **direct** URL for migrations. |
 | Migrations | `pressly/goose` v3, SQL files embedded via `embed.FS`, **run on boot** | Single instance, so there's no race. |
-| Auth | `coreos/go-oidc/v3` + `golang.org/x/oauth2` | See §5. |
+| Auth | `golang.org/x/oauth2` (code + PKCE) | No OIDC library: the ID token comes straight from Google's token endpoint over TLS, so its signature check may be skipped (OIDC Core §3.1.3.7 step 6). See §5. |
 | PDF | `github.com/go-pdf/fpdf` (pinned) + embedded Noto Sans TTF | See §6. |
 | Email | `EmailSender` interface with `gmail` (HTTPS Gmail API) and `console` drivers | No SMTP from serverless, and no domain. |
 | Logging | `log/slog` (JSON in prod) | Vercel function logs capture stdout. |
@@ -23,7 +23,7 @@
 | `apps/admin` | Vite + React 19 + TS SPA, React Router library mode, `noindex`. |
 | Styling | Tailwind CSS v4 with gold design tokens as CSS variables, Radix primitives |
 | Animation | `motion` with `LazyMotion` + `domAnimation`. Respects `prefers-reduced-motion`. |
-| Data / forms | TanStack Query, react-hook-form + zod |
+| Data / forms | React Router `clientLoader`/`clientAction` (no TanStack Query), react-hook-form + zod for the wizard |
 | Shared | `packages/api/types.ts`, hand-written request/response types used by both apps |
 | Display formatting | `Intl.NumberFormat('en-IN')` on BigInt rupees + manual paise (no floats). Words come from the server. |
 
@@ -65,8 +65,7 @@ hisab/
 │  └─ api/
 │     ├─ cmd/api/main.go        # config, pool, migrate, mux, serve
 │     ├─ internal/
-│     │  ├─ auth/               # oidc.go, session.go, middleware.go
-│     │  ├─ http/               # handlers per area: waitlist, business, parties, items,
+│     │  ├─ server/             # handlers per area: auth, waitlist, admin, business, parties, items,
 │     │  │                      # invoices, vouchers, payments, reports, admin
 │     │  ├─ tax/                # pure engine + tests + fuzz (no deps)
 │     │  ├─ inr/                # Indian grouping, amount in words (+ tests)
@@ -140,7 +139,7 @@ flowchart LR
   - Redirects to Google with `scope=openid email profile` and S256.
 - `GET /api/auth/google/callback`:
   - Checks `state` and exchanges the code with the verifier.
-  - go-oidc verifies the ID token (signature via JWKS, `iss`, `aud`, `exp`). We check `nonce` and **require `email_verified`**.
+  - The ID token comes directly from Google's token endpoint over TLS, so we read its claims without a JWKS signature check (OIDC Core §3.1.3.7 step 6) and check `iss`, `aud`, `exp`, `nonce`, and **require `email_verified`**.
   - Upserts `auth_identities(provider='google', subject=sub)`. The identity key is `sub`, not email.
   - Creates the session and redirects by business status.
 - **Session:** 32 random bytes in the cookie. The DB stores `sha256(token)`. 7-day idle and 30-day absolute expiry. `last_seen_at` is written at most once an hour. Expired rows are pruned on login.

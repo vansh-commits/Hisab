@@ -37,7 +37,7 @@ Both Vite dev servers proxy `/api` to `http://localhost:8080`, which mirrors the
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from GCP project **hisab-login** | login only |
 | `APP_ORIGIN` / `ADMIN_ORIGIN` | `http://localhost:5173` / `http://localhost:5174` | trusted origins + redirect URIs. Prod: both `https://hisab.vercel.app` (one origin) |
 | `ADMIN_EMAILS` | `you@gmail.com` | comma-separated allowlist |
-| `SESSION_COOKIE_NAME` / `ADMIN_SESSION_COOKIE_NAME` | `__Host-sid` / `__Host-asid` | override to `sid` if a browser balks on localhost |
+| (cookie names) | `sid` / `asid` locally | Derived, not configured: `__Host-sid` / `__Host-asid` (Secure) when `APP_ORIGIN` is https, plain `sid` / `asid` on http localhost |
 | `EMAIL_DRIVER` | `console` | `console` \| `gmail` |
 | `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` | (none) | GCP project **hisab-mailer**, prod only |
 | `EMAIL_FROM` | `hisab.app@gmail.com` | the mailer Google account (sent as "Hisab <…>") |
@@ -95,7 +95,7 @@ The Gmail driver is about 40 lines: refresh the access token via `x/oauth2`, bui
 | ↳ snapshot / PDF | Issue, change party/settings/items/logo, and the PDF bytes are identical. The same snapshot rendered twice gives identical bytes. Golden SHA-256 for Bill A and Bill B. Text extraction contains `₹`, `7,37,864.00`, `Seven Lakh Sixty Thousand`. | |
 | ↳ tenant isolation | Seed A and B, hit every tenant endpoint as A with B's IDs → 404. The query-lint test (every tenant query mentions `business_id`). | |
 | ↳ payments & ledger | Overpayment rejected under concurrency. Ledger = opening + invoices − payments − on-account vouchers. Old gold payment counted once. | |
-| HTTP | Expired session → 401. Logout invalidates. Cross-site POST → 403. Every `/api/admin/*` route → 403 for an app session and for a removed allowlist email. Status gates. OIDC callback against a local stub IdP (bad nonce, `email_verified=false`, wrong aud). | `httptest` + real DB |
+| HTTP | Expired session → 401. Logout invalidates. Cross-site POST → 403. Every `/api/admin/*` route → 401 without an admin session (incl. an app session) and 403 for a removed allowlist email. Status gates. OIDC callback against a local stub IdP (bad nonce, `email_verified=false`, wrong aud). | `httptest` + real DB |
 | Frontend | `tsc --noEmit`. One Playwright happy path (dev login → onboarding → Bill B with old gold → issue → PDF downloads → record payment) is **optional for MVP** and added before the first paying customer. | |
 
 **CI** (`.github/workflows/ci.yml`, GitHub `postgres:17` service): `go vet`, `staticcheck`, `go test ./...` (incl. 60 s fuzz), `sqlc diff`, `pnpm -r typecheck`.

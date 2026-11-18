@@ -2,23 +2,22 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
-	"github.com/pressly/goose/v3/lock"
 
-	"hisab/internal/db"
+	"hisab/internal/email"
+	"hisab/internal/server"
 	"hisab/migrations"
 )
 
@@ -39,35 +38,68 @@ func main() {
 }
 
 func run(migrateOnly bool) error {
-	dbURL := must("DATABASE_URL")
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		return errors.New("DATABASE_URL is required")
+	}
+	dev := os.Getenv("APP_ENV") == "dev"
+	if u, err := url.Parse(dbURL); err != nil || (dev && u.Hostname() != "localhost" && u.Hostname() != "127.0.0.1") {
+		return errors.New("APP_ENV=dev is only allowed with a local DATABASE_URL")
+	}
 	directURL := os.Getenv("DATABASE_URL_DIRECT")
 	if directURL == "" {
 		directURL = dbURL
 	}
-	if err := migrate(directURL); err != nil {
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := migrations.Up(ctx, directURL); err != nil {
 		return err
 	}
 	if migrateOnly {
 		return nil
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	cfg, err := pgxpool.ParseConfig(dbURL)
+	cfg := server.Config{
+		Dev:            dev,
+		AppOrigin:      os.Getenv("APP_ORIGIN"),
+		AdminOrigin:    os.Getenv("ADMIN_ORIGIN"),
+		AdminEmails:    map[string]bool{},
+		GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleSecret:   os.Getenv("GOOGLE_CLIENT_SECRET"),
+	}
+	if cfg.AppOrigin == "" {
+		return errors.New("APP_ORIGIN is required")
+	}
+	for _, e := range strings.Split(os.Getenv("ADMIN_EMAILS"), ",") {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
+			cfg.AdminEmails[e] = true
+		}
+	}
+	send, err := email.FromEnv()
 	if err != nil {
 		return err
 	}
-	cfg.MaxConns = 4 // per instance; Neon's pooler fans in
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+
+	pcfg, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		return err
+	}
+	pcfg.MaxConns = 4 // per instance; Neon's pooler fans in
+	pool, err := pgxpool.NewWithConfig(ctx, pcfg)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	srv := &http.Server{
-		Addr:              ":" + env("PORT", "8080"),
-		Handler:           routes(pool),
+		Addr:              ":" + port,
+		Handler:           server.New(pool, cfg, send).Routes(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	done := make(chan struct{})
@@ -78,99 +110,10 @@ func run(migrateOnly bool) error {
 		defer cancel()
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("listening", "addr", srv.Addr)
+	slog.Info("listening", "addr", srv.Addr, "dev", dev)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		return err
+		return fmt.Errorf("listen: %w", err)
 	}
 	<-done // ListenAndServe returns as soon as Shutdown starts; wait for in-flight requests before pool.Close
 	return nil
-}
-
-// migrate runs on every cold start. Vercel may start several instances at once,
-// so a Postgres advisory lock serialises them.
-func migrate(url string) error {
-	sqlDB, err := sql.Open("pgx", url)
-	if err != nil {
-		return err
-	}
-	defer sqlDB.Close()
-	locker, err := lock.NewPostgresSessionLocker()
-	if err != nil {
-		return err
-	}
-	p, err := goose.NewProvider(goose.DialectPostgres, sqlDB, migrations.FS, goose.WithSessionLocker(locker))
-	if err != nil {
-		return err
-	}
-	res, err := p.Up(context.Background())
-	for _, r := range res {
-		slog.Info("migrated", "file", r.Source.Path, "took", r.Duration)
-	}
-	return err
-}
-
-func routes(pool *pgxpool.Pool) http.Handler {
-	mux := http.NewServeMux()
-	q := db.New(pool)
-
-	// Health check for the host; never touches the DB so Neon can sleep.
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte("ok"))
-	})
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		states, err := q.ListStates(r.Context())
-		if err != nil {
-			http.Error(w, "db unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		writeJSON(w, map[string]any{"ok": true, "states": len(states)})
-	})
-
-	// ponytail: Phase 0 only — delete once the cookie-through-rewrite check is recorded in PLAN.md.
-	if os.Getenv("DEBUG_ROUTES") == "1" {
-		name := env("SESSION_COOKIE_NAME", "__Host-sid")
-		mux.HandleFunc("POST /api/debug/cookie", func(w http.ResponseWriter, _ *http.Request) {
-			http.SetCookie(w, &http.Cookie{Name: name, Value: "test", Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode, MaxAge: 600})
-			writeJSON(w, map[string]any{"set": name})
-		})
-		mux.HandleFunc("GET /api/debug/cookie", func(w http.ResponseWriter, r *http.Request) {
-			v := ""
-			if c, err := r.Cookie(name); err == nil {
-				v = c.Value
-			}
-			writeJSON(w, map[string]any{"cookie": v, "server_time": time.Now().UTC()})
-		})
-	}
-
-	cop := http.NewCrossOriginProtection()
-	for _, k := range []string{"APP_ORIGIN", "ADMIN_ORIGIN"} {
-		if o := os.Getenv(k); o != "" {
-			if err := cop.AddTrustedOrigin(o); err != nil {
-				slog.Error("bad origin", "var", k, "err", err)
-			}
-		}
-	}
-	return cop.Handler(mux)
-}
-
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	_ = json.NewEncoder(w).Encode(v)
-}
-
-func env(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return def
-}
-
-func must(k string) string {
-	v := os.Getenv(k)
-	if v == "" {
-		slog.Error("missing env", "var", k)
-		os.Exit(1)
-	}
-	return v
 }
