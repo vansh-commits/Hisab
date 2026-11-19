@@ -1,5 +1,5 @@
 import type { HomeData } from "@hisab/api";
-import { ArrowRight, BookOpen, CalendarDays, Coins, IndianRupee, Plus, Receipt, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, Coins, IndianRupee, Plus, ReceiptIndianRupee, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import { BillRows } from "../components/bills";
 import { btn, Empty } from "../components/ui";
@@ -49,7 +49,7 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
 
       <div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="Today's sales" paise={d.today_paise} sub={`${d.today_count} bills`} icon={IndianRupee} tone="bg-green-50 text-green-800" />
-        <Stat label="This month" paise={d.month_paise} sub={`${d.month_count} bills`} icon={Receipt} tone="bg-gold-100 text-gold-600" />
+        <Stat label="This month" paise={d.month_paise} sub={`${d.month_count} bills`} icon={ReceiptIndianRupee} tone="bg-gold-100 text-gold-600" />
         <Link to="/app/customers" className="col-span-2 rounded-2xl sm:col-span-1">
           <Stat label="To collect (udhaar)" paise={d.outstanding_paise} sub="All customers →" icon={BookOpen} tone="bg-maroon-700/10 text-maroon-700" />
         </Link>
@@ -86,7 +86,7 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
 
       <section className="mt-7">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-semibold"><Receipt aria-hidden className="size-4 text-gold-600" /> Recent bills</h2>
+          <h2 className="flex items-center gap-2 font-semibold"><ReceiptIndianRupee aria-hidden className="size-4 text-gold-600" /> Recent bills</h2>
           <Link to="/app/bills" className="flex items-center gap-1 text-sm text-gold-600 underline-offset-4 hover:underline">All bills <ArrowRight aria-hidden className="size-4" /></Link>
         </div>
         {d.recent.length ? <BillRows rows={d.recent} /> : <Empty>Pehla bill banaiye — it takes under a minute.</Empty>}

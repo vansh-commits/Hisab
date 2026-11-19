@@ -1,4 +1,4 @@
-import { BookOpen, ChartColumn, Check, Coins, Download, Gem, House, Plus, Receipt, Share2, TrendingUp } from "lucide-react";
+import { BookOpen, ChartColumn, Check, Coins, Download, Gem, House, Plus, ReceiptIndianRupee, Share2, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 // Faithful mini replicas of the real app screens for the landing page (no screenshots to go stale).
@@ -50,7 +50,7 @@ function AppBar({ title }: { title: string }) {
 }
 
 function Tabs({ active }: { active: number }) {
-  const t = [House, Receipt, Plus, BookOpen, Gem];
+  const t = [House, ReceiptIndianRupee, Plus, BookOpen, Gem];
   return (
     <div className="absolute inset-x-0 bottom-0 grid grid-cols-5 border-t border-gold-400/40 bg-white py-2">
       {t.map((I, i) =>
@@ -231,7 +231,7 @@ export function ReportsScreen() {
 
 // Desktop: the dashboard with the sidebar, inside a browser frame.
 export function DesktopDashboard() {
-  const nav: [typeof House, string][] = [[House, "Home"], [Plus, "New bill"], [Receipt, "All bills"], [Coins, "Old gold"], [BookOpen, "Customers"], [Gem, "Particulars"], [TrendingUp, "Today's rates"], [ChartColumn, "Reports"]];
+  const nav: [typeof House, string][] = [[House, "Home"], [Plus, "New bill"], [ReceiptIndianRupee, "All bills"], [Coins, "Old gold"], [BookOpen, "Customers"], [Gem, "Particulars"], [TrendingUp, "Today's rates"], [ChartColumn, "Reports"]];
   return (
     <div className="overflow-hidden rounded-2xl border border-ink/10 bg-white text-ink shadow-2xl shadow-gold-600/20">
       <div className="flex items-center gap-1.5 border-b border-ink/10 bg-ink/[.03] px-3 py-2" aria-hidden>

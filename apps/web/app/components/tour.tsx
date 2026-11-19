@@ -1,4 +1,4 @@
-import { BookOpen, ChartColumn, CircleHelp, Coins, Gem, Plus, Receipt, Sparkles, TrendingUp, X, type LucideIcon } from "lucide-react";
+import { BookOpen, ChartColumn, CircleHelp, Coins, Gem, Plus, ReceiptIndianRupee, Sparkles, TrendingUp, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
@@ -13,7 +13,7 @@ const STEPS: Step[] = [
   { targets: ["items"], icon: Gem, title: "Aapke particulars", body: "Chain, ring, bangles, job work — jo bhi bechte hain, ek baar yahan add kijiye: HSN, GST, purity, making. Phir bill mein bas dropdown se chuniye.", to: "/app/items", cta: "Particulars kholiye" },
   { targets: ["new-bill"], icon: Plus, title: "Naya bill — seconds mein", body: "Customer chuniye, particular chuniye, weight daaliye. Total, CGST/SGST sab live. “Rate se” ya “Total se” — dono chalte hain. Save & issue = bill number + PDF.", to: "/app/bills/new", cta: "Bill banaiye" },
   { targets: ["old-gold", "more"], icon: Coins, title: "Purana sona", body: "Exchange ho to bill par hi “Purana sona lein” tick kijiye — net payable apne aap kam. Sirf kharidna ho to yahan se voucher banaiye." },
-  { targets: ["bills"], icon: Receipt, title: "Saare bills ek jagah", body: "Search, drafts, PDF / print, WhatsApp share, payment record karna, galat bill cancel karna — sab yahin. Issue hua bill lock rehta hai.", to: "/app/bills", cta: "Bills dekhiye" },
+  { targets: ["bills"], icon: ReceiptIndianRupee, title: "Saare bills ek jagah", body: "Search, drafts, PDF / print, WhatsApp share, payment record karna, galat bill cancel karna — sab yahin. Issue hua bill lock rehta hai.", to: "/app/bills", cta: "Bills dekhiye" },
   { targets: ["customers"], icon: BookOpen, title: "Khata — kisse kitna lena hai", body: "Har customer ka udhaar, payments aur poora ledger. Opening balance, on-account payment aur WhatsApp reminder bhi yahin se.", to: "/app/customers", cta: "Khata kholiye" },
   { targets: ["reports", "more"], icon: ChartColumn, title: "CA ke liye reports", body: "Sales register, GST summary, HSN summary, old gold register — month ya FY chuniye, CSV download kijiye." },
   { targets: ["help", "more"], icon: CircleHelp, title: "Bas itna hi!", body: "Ye tour kabhi bhi dobara dekhna ho to “How to use Hisab” dabaiye. Ab pehla bill banate hain?" },

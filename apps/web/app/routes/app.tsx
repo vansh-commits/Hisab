@@ -3,7 +3,7 @@ import { useState } from "react";
 import { NavLink, Outlet, redirect, useLocation, useNavigate, useNavigation, useRouteLoaderData } from "react-router";
 import { AppShellSkeleton, PageSkeleton } from "../components/skeleton";
 import { Tour } from "../components/tour";
-import { BookOpen, ChartColumn, ChevronDown, CircleHelp, Coins, Gem, House, LogOut, Plus, Receipt, Settings, TrendingUp, type LucideIcon } from "lucide-react";
+import { BookOpen, ChartColumn, ChevronDown, CircleHelp, Coins, Gem, House, LogOut, Plus, ReceiptIndianRupee, Settings, TrendingUp, type LucideIcon } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { Route } from "./+types/app";
 
@@ -91,7 +91,7 @@ const SIDEBAR: { title?: string; links: Link[] }[] = [
     title: "Billing",
     links: [
       { to: "/app/bills/new", label: "New bill", icon: Plus, tour: "new-bill" },
-      { to: "/app/bills", label: "All bills", icon: Receipt, end: true, tour: "bills" },
+      { to: "/app/bills", label: "All bills", icon: ReceiptIndianRupee, end: true, tour: "bills" },
       { to: "/app/old-gold", label: "Old gold", icon: Coins, tour: "old-gold" },
     ],
   },
@@ -109,7 +109,7 @@ const SIDEBAR: { title?: string; links: Link[] }[] = [
 
 const TABS: (Link & { primary?: boolean })[] = [
   { to: "/app", label: "Home", icon: House, end: true, tour: "home" },
-  { to: "/app/bills", label: "Bills", icon: Receipt, end: true, tour: "bills" },
+  { to: "/app/bills", label: "Bills", icon: ReceiptIndianRupee, end: true, tour: "bills" },
   { to: "/app/bills/new", label: "New bill", icon: Plus, primary: true, tour: "new-bill" },
   { to: "/app/customers", label: "Khata", icon: BookOpen, tour: "customers" },
   { to: "/app/items", label: "Particulars", icon: Gem, tour: "items" },
