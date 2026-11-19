@@ -88,13 +88,13 @@ export default function Customer({ loaderData: { party, ledger, states, unpaid, 
 // reminder is the WhatsApp text: greeting, each unpaid bill, the khata total and how to pay.
 // ponytail: only the latest 50 issued bills are checked (one /invoices page); older dues still count in the total.
 function reminder(name: string, shop: string, unpaid: InvoiceRow[], bal: number, upi: string | null) {
-  const lines = [`Namaste ${name} ji 🙏`, "", `${shop ? `${shop} ki taraf se` : "Hamari taraf se"} ek chhota sa yaad-dihani sandesh.`];
+  const lines = [`Namaste ${name} ji 🙏`, "", shop ? `${shop} se payment reminder.` : "Payment reminder."];
   if (unpaid.length) {
-    lines.push("", unpaid.length === 1 ? "Yeh bill abhi baaki hai:" : "Yeh bills abhi baaki hain:", "");
-    for (const b of [...unpaid].reverse()) lines.push(`• Bill ${b.invoice_no} (${fmtDate(b.invoice_date)}) — ${fmtINR(b.net_payable_paise - b.paid_paise)} baaki`);
+    lines.push("", unpaid.length === 1 ? "Aapka ye bill pending hai:" : "Aapke ye bills pending hain:", "");
+    for (const b of [...unpaid].reverse()) lines.push(`• Bill ${b.invoice_no} (${fmtDate(b.invoice_date)}) — ${fmtINR(b.net_payable_paise - b.paid_paise)} pending`);
   }
-  lines.push("", `*Kul baaki: ${fmtINR(bal)}*`, "");
-  if (upi) lines.push(`Aap UPI se bhi bhej sakte hain: ${upi}`, "");
-  lines.push("Suvidha anusaar bhugtan kar dijiye. Agar pehle hi kar diya hai to kripya is sandesh ko nazarandaz karein.", "", "Dhanyavaad!", shop);
+  lines.push("", `*Total pending: ${fmtINR(bal)}*`, "");
+  if (upi) lines.push(`UPI se bhi pay kar sakte hain: ${upi}`, "");
+  lines.push("Agar payment ho chuka hai to is message ko ignore karein.", "", "Thank you!", shop);
   return lines.join("\n").trim();
 }
