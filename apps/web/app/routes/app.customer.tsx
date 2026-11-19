@@ -1,4 +1,4 @@
-import type { Ledger, Party, State } from "@hisab/api";
+import type { InvoiceRow, Ledger, Party, Settings, State } from "@hisab/api";
 import { useState } from "react";
 import { Link, useNavigate, useRevalidator } from "react-router";
 import { fmtDate } from "../components/bills";
@@ -11,17 +11,19 @@ import { PartyForm } from "./app.customers";
 import { readOnly, useMe } from "./app";
 
 export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  const [party, ledger, states] = await Promise.all([
+  const [party, ledger, states, bills, settings] = await Promise.all([
     api<Party>(`/parties/${params.id}`),
     api<Ledger>(`/parties/${params.id}/ledger`),
     api<{ items: State[] }>("/states"),
+    api<{ items: InvoiceRow[] }>(`/invoices?status=issued&party_id=${params.id}`),
+    api<Settings>("/settings"),
   ]);
-  return { party, ledger, states: states.items };
+  return { party, ledger, states: states.items, unpaid: bills.items.filter((b) => b.net_payable_paise > b.paid_paise), upi: settings.upi_id };
 }
 
 const LABEL: Record<string, string> = { invoice: "Bill", payment: "Payment", old_gold: "Old gold (exchange)", voucher: "Old gold bought", voucher_paid: "Paid for old gold" };
 
-export default function Customer({ loaderData: { party, ledger, states } }: Route.ComponentProps) {
+export default function Customer({ loaderData: { party, ledger, states, unpaid, upi } }: Route.ComponentProps) {
   const me = useMe();
   const navigate = useNavigate();
   const { revalidate } = useRevalidator();
@@ -46,7 +48,7 @@ export default function Customer({ loaderData: { party, ledger, states } }: Rout
           <Link to="/app/bills/new" className={btn.primary}>New bill</Link>
           <button className={btn.ghost} onClick={() => setPay(!pay)}>Receive payment</button>
           <button className={btn.ghost} onClick={() => setEdit(!edit)}>Edit</button>
-          {party.phone && <a className={btn.ghost} href={`https://wa.me/${party.phone.replace(/\D/g, "").replace(/^(?=\d{10}$)/, "91")}?text=${encodeURIComponent(`Namaste ${party.name}, aapka baaki ${fmtINR(Math.max(bal, 0))} hai.`)}`} target="_blank" rel="noreferrer">WhatsApp reminder</a>}
+          {party.phone && bal > 0 && <a className={btn.ghost} href={`https://wa.me/${party.phone.replace(/\D/g, "").replace(/^(?=\d{10}$)/, "91")}?text=${encodeURIComponent(reminder(party.name, me.business?.trade_name ?? "", unpaid, bal, upi))}`} target="_blank" rel="noreferrer">WhatsApp reminder</a>}
         </div>
       )}
       {edit && (
@@ -81,4 +83,18 @@ export default function Customer({ loaderData: { party, ledger, states } }: Rout
       </section>
     </div>
   );
+}
+
+// reminder is the WhatsApp text: greeting, each unpaid bill, the khata total and how to pay.
+// ponytail: only the latest 50 issued bills are checked (one /invoices page); older dues still count in the total.
+function reminder(name: string, shop: string, unpaid: InvoiceRow[], bal: number, upi: string | null) {
+  const lines = [`Namaste ${name} ji 🙏`, "", `${shop ? `${shop} ki taraf se` : "Hamari taraf se"} ek chhota sa yaad-dihani sandesh.`];
+  if (unpaid.length) {
+    lines.push("", unpaid.length === 1 ? "Yeh bill abhi baaki hai:" : "Yeh bills abhi baaki hain:", "");
+    for (const b of [...unpaid].reverse()) lines.push(`• Bill ${b.invoice_no} (${fmtDate(b.invoice_date)}) — ${fmtINR(b.net_payable_paise - b.paid_paise)} baaki`);
+  }
+  lines.push("", `*Kul baaki: ${fmtINR(bal)}*`, "");
+  if (upi) lines.push(`Aap UPI se bhi bhej sakte hain: ${upi}`, "");
+  lines.push("Suvidha anusaar bhugtan kar dijiye. Agar pehle hi kar diya hai to kripya is sandesh ko nazarandaz karein.", "", "Dhanyavaad!", shop);
+  return lines.join("\n").trim();
 }
