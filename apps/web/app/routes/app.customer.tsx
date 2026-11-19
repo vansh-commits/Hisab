@@ -18,12 +18,12 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
     api<{ items: InvoiceRow[] }>(`/invoices?status=issued&party_id=${params.id}`),
     api<Settings>("/settings"),
   ]);
-  return { party, ledger, states: states.items, unpaid: bills.items.filter((b) => b.net_payable_paise > b.paid_paise), upi: settings.upi_id };
+  return { party, ledger, states: states.items, unpaid: bills.items.filter((b) => b.net_payable_paise > b.paid_paise), settings };
 }
 
 const LABEL: Record<string, string> = { invoice: "Bill", payment: "Payment", old_gold: "Old gold (exchange)", voucher: "Old gold bought", voucher_paid: "Paid for old gold" };
 
-export default function Customer({ loaderData: { party, ledger, states, unpaid, upi } }: Route.ComponentProps) {
+export default function Customer({ loaderData: { party, ledger, states, unpaid, settings } }: Route.ComponentProps) {
   const me = useMe();
   const navigate = useNavigate();
   const { revalidate } = useRevalidator();
@@ -48,7 +48,7 @@ export default function Customer({ loaderData: { party, ledger, states, unpaid, 
           <Link to="/app/bills/new" className={btn.primary}>New bill</Link>
           <button className={btn.ghost} onClick={() => setPay(!pay)}>Receive payment</button>
           <button className={btn.ghost} onClick={() => setEdit(!edit)}>Edit</button>
-          {party.phone && bal > 0 && <a className={btn.ghost} href={`https://wa.me/${party.phone.replace(/\D/g, "").replace(/^(?=\d{10}$)/, "91")}?text=${encodeURIComponent(reminder(party.name, me.business?.trade_name ?? "", unpaid, bal, upi))}`} target="_blank" rel="noreferrer">WhatsApp reminder</a>}
+          {party.phone && bal > 0 && <a className={btn.ghost} href={`https://wa.me/${party.phone.replace(/\D/g, "").replace(/^(?=\d{10}$)/, "91")}?text=${encodeURIComponent(reminder(party.name, unpaid, bal, settings))}`} target="_blank" rel="noreferrer">WhatsApp reminder</a>}
         </div>
       )}
       {edit && (
@@ -85,16 +85,17 @@ export default function Customer({ loaderData: { party, ledger, states, unpaid, 
   );
 }
 
-// reminder is the WhatsApp text: greeting, each unpaid bill, the khata total and how to pay.
+// reminder is the WhatsApp text: greeting, unpaid bills with the khata total, bank details.
 // ponytail: only the latest 50 issued bills are checked (one /invoices page); older dues still count in the total.
-function reminder(name: string, shop: string, unpaid: InvoiceRow[], bal: number, upi: string | null) {
-  const lines = [`Namaste ${name} ji 🙏`, "", shop ? `${shop} se payment reminder.` : "Payment reminder."];
+function reminder(name: string, unpaid: InvoiceRow[], bal: number, s: Settings) {
+  const lines = [`Namaste ${name} ji`, ""];
   if (unpaid.length) {
-    lines.push("", unpaid.length === 1 ? "Aapka ye bill pending hai:" : "Aapke ye bills pending hain:", "");
-    for (const b of [...unpaid].reverse()) lines.push(`• Bill ${b.invoice_no} (${fmtDate(b.invoice_date)}) — ${fmtINR(b.net_payable_paise - b.paid_paise)} pending`);
+    lines.push("Pending bills:");
+    for (const b of [...unpaid].reverse()) lines.push(`• ${b.invoice_no} (${fmtDate(b.invoice_date)}) — ${fmtINR(b.net_payable_paise - b.paid_paise)}`);
   }
-  lines.push("", `*Total pending: ${fmtINR(bal)}*`, "");
-  if (upi) lines.push(`UPI se bhi pay kar sakte hain: ${upi}`, "");
-  lines.push("Agar payment ho chuka hai to is message ko ignore karein.", "", "Thank you!", shop);
-  return lines.join("\n").trim();
+  lines.push(`Total: ${fmtINR(bal)}`);
+  const bank = ([["Bank", s.bank_name], ["A/c name", s.bank_account_name], ["A/c no", s.bank_account_no], ["IFSC", s.bank_ifsc], ["UPI", s.upi_id]] as const).filter(([, v]) => v);
+  if (bank.length) lines.push("", "Bank details:", ...bank.map(([k, v]) => `${k}: ${v}`));
+  lines.push("", "Payment ho gaya ho to ignore karein.");
+  return lines.join("\n");
 }
