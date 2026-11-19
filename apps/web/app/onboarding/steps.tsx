@@ -289,10 +289,10 @@ function Print({ d, me }: StepProps) {
       }}
     >
       <Heading title="Print settings" sub="Defaults theek hain — seedha Next bhi daba sakte hain." />
-      <fieldset className="grid gap-2 sm:grid-cols-3">
+      <fieldset className="grid gap-2 sm:grid-cols-2">
         <legend className="mb-1 text-sm font-medium">Copies in each PDF</legend>
-        {(["original", "duplicate", "triplicate"] as const).map((c) => (
-          <Check key={c} name="copies" value={c} defaultChecked={s.copies.includes(c)} label={c[0]!.toUpperCase() + c.slice(1)} />
+        {([["original", "Customer copy (Original)"], ["duplicate", "Shop copy (Duplicate)"]] as const).map(([c, label]) => (
+          <Check key={c} name="copies" value={c} defaultChecked={s.copies.includes(c)} label={label} />
         ))}
       </fieldset>
       <Field label="Jurisdiction line" name="jurisdiction" defaultValue={s.jurisdiction || `Subject to ${d.biz.city ?? ""} jurisdiction`} />

@@ -44,7 +44,7 @@ const STORY: { icon: LucideIcon; time: string; title: string; body: string; scre
   { icon: Gem, time: "10:05", title: "Particulars ek baar, hamesha ke liye", body: "Chain, bangles, ring, job work — HSN, GST, purity, making ek baar. Bill mein bas dropdown.", screen: () => <ParticularsScreen /> },
   { icon: Calculator, time: "11:30", title: "Customer aaya — bill 30 second mein", body: "Customer chuniye, chain chuniye, weight daaliye. CGST/SGST, round off, amount in words — sab khud.", screen: (on) => <BillScreen play={on} /> },
   { icon: Coins, time: "11:31", title: "Purana sona? Usi bill par", body: "“Purana sona lein” tick kijiye — old gold minus, net payable ready, purchase voucher bhi ban gaya.", screen: (on) => <BillScreen oldGold play={on} /> },
-  { icon: FileText, time: "11:32", title: "PDF tayyar, WhatsApp par", body: "Original / Duplicate PDF, HSN summary ke saath. Ek tap mein customer ko WhatsApp.", screen: () => <IssuedScreen /> },
+  { icon: FileText, time: "11:32", title: "PDF tayyar, WhatsApp par", body: "Customer copy + shop copy PDF, HSN summary ke saath. Ek tap mein customer ko WhatsApp.", screen: () => <IssuedScreen /> },
   { icon: BookOpen, time: "6:00", title: "Shaam ko khata", body: "Kisse kitna lena hai — har customer ka ledger, payments, aur ek tap mein reminder.", screen: () => <KhataScreen /> },
   { icon: ChartColumn, time: "Mahine ke end", title: "CA ke liye reports", body: "GST summary, HSN summary, sales register — CSV download, CA khush.", screen: () => <ReportsScreen /> },
 ];
@@ -128,7 +128,7 @@ const FEATURES: [LucideIcon, string, string][] = [
   [RefreshCw, "Total se bill", "Customer ne total bataya? “Total se” — rate aur GST Hisab nikaal dega."],
   [Calculator, "CGST / SGST / IGST automatic", "Place of supply GST law ke hisaab se. Aapko sochna nahi padega."],
   [Coins, "Purana sona exchange", "Old gold usi bill par minus — purchase voucher bhi apne aap."],
-  [FileText, "PDF: Original / Duplicate", "Ek click mein PDF, WhatsApp share. HSN summary, amount in words."],
+  [FileText, "PDF: customer + shop copy", "Ek click mein PDF, WhatsApp share. HSN summary, amount in words."],
   [BookOpen, "Customer khata", "Udhaar, payments, opening balance — har customer ka ledger."],
 ];
 

@@ -192,13 +192,29 @@ type Logo struct {
 
 // ── rendering ────────────────────────────────────────────────────────────
 
+// One copy is for the customer, one stays with the shop. Triplicate is kept for old settings.
 var copyLabel = map[string]string{
-	"original":   "ORIGINAL FOR RECIPIENT",
-	"duplicate":  "DUPLICATE FOR TRANSPORTER",
-	"triplicate": "TRIPLICATE FOR SUPPLIER",
+	"original":   "ORIGINAL — CUSTOMER COPY",
+	"duplicate":  "DUPLICATE — SHOP COPY",
+	"triplicate": "EXTRA COPY",
 }
 
-const pageW = 190.0 // A4 minus 10 mm margins
+const (
+	margin  = 14.0
+	pageW   = 210 - 2*margin // usable width
+	bottomY = 297 - margin
+	lh      = 4.6 // body line height
+)
+
+type rgb [3]int
+
+var (
+	cGold  = rgb{154, 123, 47}
+	cTint  = rgb{248, 242, 226}
+	cRule  = rgb{222, 211, 184}
+	cMuted = rgb{112, 104, 92}
+	cInk   = rgb{30, 26, 22}
+)
 
 func rs(p int64) string { return inr.Format(p) }
 
@@ -225,6 +241,15 @@ func pct(milli int64) string {
 	return s + "%"
 }
 
+// day turns "2026-11-19" into "19 Nov 2026".
+func day(d string) string {
+	t, err := time.Parse("2006-01-02", d)
+	if err != nil {
+		return d
+	}
+	return t.Format("02 Jan 2006")
+}
+
 // docTime turns the document date into the PDF creation date, so re-renders are byte-identical.
 func docTime(date string) time.Time {
 	t, err := time.Parse("2006-01-02", date)
@@ -240,103 +265,185 @@ type page struct {
 }
 
 func (p page) text(style string, size float64) { p.SetFont("Noto", style, size) }
+func (p page) ink(c rgb)                       { p.SetTextColor(c[0], c[1], c[2]) }
+func (p page) draw(c rgb)                      { p.SetDrawColor(c[0], c[1], c[2]) }
+func (p page) fill(c rgb)                      { p.SetFillColor(c[0], c[1], c[2]) }
 
-// header draws the seller block, the copy label and the title bar.
+// ensure starts a new page when h mm won't fit.
+func (p page) ensure(h float64) {
+	if p.GetY()+h > bottomY {
+		p.AddPage()
+		p.SetY(margin)
+	}
+}
+
+func (p page) rule(y float64, c rgb, w float64) {
+	p.draw(c)
+	p.SetLineWidth(w)
+	p.Line(margin, y, margin+pageW, y)
+	p.SetLineWidth(0.2)
+}
+
+func shopName(s Seller) string {
+	if s.TradeName != "" {
+		return s.TradeName
+	}
+	return s.LegalName
+}
+
+// header draws logo + seller block, the copy label, and the document title.
 func (p page) header(s Seller, title, label string, draft bool) {
-	x0 := p.GetX()
+	x0, logoBottom := margin, margin
 	if p.logo != nil && (p.logo.Type == "PNG" || p.logo.Type == "JPG") {
 		opt := fpdf.ImageOptions{ImageType: p.logo.Type, ReadDpi: false}
-		p.RegisterImageOptionsReader("logo", opt, bytes.NewReader(p.logo.Data))
-		if p.Ok() {
-			p.ImageOptions("logo", 10, 10, 22, 0, false, opt, 0, "")
-			x0 = 36
+		info := p.RegisterImageOptionsReader("logo", opt, bytes.NewReader(p.logo.Data))
+		if p.Ok() && info != nil && info.Width() > 0 {
+			w, h := 24.0, 24*info.Height()/info.Width()
+			if h > 26 {
+				w, h = 26*info.Width()/info.Height(), 26
+			}
+			p.ImageOptions("logo", margin, margin, w, h, false, opt, 0, "")
+			x0, logoBottom = margin+w+6, margin+h
 		} else {
 			p.ClearError() // a broken logo never blocks the bill
 		}
 	}
-	p.SetXY(x0, 10)
-	p.text("", 7)
-	p.CellFormat(pageW+10-x0, 4, label, "", 1, "R", false, 0, "")
-	p.SetX(x0)
-	p.text("B", 15)
-	name := s.TradeName
-	if name == "" {
-		name = s.LegalName
+	right := 0.0
+	if label != "" {
+		p.text("B", 7)
+		right = p.GetStringWidth(label) + 8
+		p.draw(cGold)
+		p.ink(cGold)
+		p.SetXY(margin+pageW-right, margin)
+		p.CellFormat(right, 6, label, "1", 0, "C", false, 0, "")
 	}
-	p.CellFormat(0, 7, name, "", 1, "L", false, 0, "")
-	p.text("", 8)
-	lines := []string{}
+	w := margin + pageW - x0
+	p.SetXY(x0, margin-1)
+	p.ink(cInk)
+	p.text("B", 17)
+	p.MultiCell(w-right-4, 8, shopName(s), "", "L", false)
+	p.text("", 8.5)
+	p.ink(cMuted)
 	if s.TradeName != "" && s.TradeName != s.LegalName {
-		lines = append(lines, s.LegalName)
+		p.SetX(x0)
+		p.MultiCell(w, lh, s.LegalName, "", "L", false)
 	}
-	lines = append(lines, s.Address, s.State.Name+" ("+s.State.Code+")")
-	id := []string{}
-	if s.GSTIN != nil {
-		id = append(id, "GSTIN: "+*s.GSTIN)
+	p.SetX(x0)
+	p.MultiCell(w, lh, strings.TrimSpace(s.Address)+"\n"+s.State.Name+" ("+s.State.Code+")", "", "L", false)
+	p.SetY(p.GetY() + 1)
+	if s.GSTIN != nil || s.UdyamNo != nil {
+		p.SetX(x0)
+		p.ink(cInk)
+		p.text("B", 8.5)
+		id := []string{}
+		if s.GSTIN != nil {
+			id = append(id, "GSTIN: "+*s.GSTIN)
+		}
+		if s.UdyamNo != nil {
+			id = append(id, "Udyam: "+*s.UdyamNo)
+		}
+		p.MultiCell(w, lh, strings.Join(id, "     "), "", "L", false)
 	}
-	if s.UdyamNo != nil {
-		id = append(id, "Udyam: "+*s.UdyamNo)
-	}
+	contact := []string{}
 	if s.Phone != nil {
-		id = append(id, "Ph: "+*s.Phone)
+		contact = append(contact, "Phone: "+*s.Phone)
 	}
 	if s.Email != nil {
-		id = append(id, *s.Email)
+		contact = append(contact, "Email: "+*s.Email)
 	}
-	lines = append(lines, strings.Join(id, "  ·  "))
-	for _, l := range lines {
+	if len(contact) > 0 {
 		p.SetX(x0)
-		p.CellFormat(0, 4, l, "", 1, "L", false, 0, "")
+		p.ink(cMuted)
+		p.text("", 8.5)
+		p.MultiCell(w, lh, strings.Join(contact, "     "), "", "L", false)
 	}
-	if p.GetY() < 34 {
-		p.SetY(34)
-	}
-	p.Ln(1)
-	p.SetFillColor(246, 238, 217)
-	p.text("B", 11)
-	p.CellFormat(pageW, 7, title, "1", 1, "C", true, 0, "")
+	y := max(p.GetY(), logoBottom) + 4
+	p.rule(y, cGold, 0.6)
+	p.SetXY(margin, y+2.5)
+	p.ink(cGold)
+	p.text("B", 13)
+	p.CellFormat(pageW, 7, strings.ToUpper(title), "", 1, "C", false, 0, "")
+	p.ink(cInk)
+	p.SetY(p.GetY() + 2)
 	if draft {
 		p.watermark()
 	}
 }
 
 func (p page) watermark() {
-	p.SetTextColor(220, 200, 200)
+	p.SetTextColor(225, 205, 205)
 	p.text("B", 90)
 	p.TransformBegin()
 	p.TransformRotate(35, 105, 160)
 	p.Text(45, 190, "DRAFT")
 	p.TransformEnd()
-	p.SetTextColor(0, 0, 0)
+	p.ink(cInk)
 }
 
-// kv draws "label: value" rows in a box at x with width w; returns the bottom y.
-func (p page) kv(x, y, w float64, title string, rows [][2]string) float64 {
-	p.SetXY(x, y)
-	p.text("B", 8)
-	p.CellFormat(w, 5, title, "", 2, "L", false, 0, "")
-	for _, r := range rows {
+// panel draws a titled, boxed block: an optional bold lead line (a name), free text (an
+// address, kept on its own lines) and label/value rows. Empty values are skipped.
+// h > 0 forces the box height (so side-by-side panels line up); it returns the content bottom.
+type panelData struct {
+	title, lead, body string
+	rows              [][2]string
+}
+
+func (p page) panelContent(x, y, w float64, d panelData) float64 {
+	in := w - 8
+	p.SetXY(x+4, y+3.5)
+	p.ink(cGold)
+	p.text("B", 7.5)
+	p.CellFormat(in, 4, strings.ToUpper(d.title), "", 2, "L", false, 0, "")
+	p.SetY(p.GetY() + 1.5)
+	if d.lead != "" {
+		p.SetX(x + 4)
+		p.ink(cInk)
+		p.text("B", 10)
+		p.MultiCell(in, 5.5, d.lead, "", "L", false)
+	}
+	if b := strings.TrimSpace(d.body); b != "" {
+		p.SetX(x + 4)
+		p.ink(cMuted)
+		p.text("", 8.5)
+		p.MultiCell(in, lh, b, "", "L", false)
+		p.SetY(p.GetY() + 1.5)
+	}
+	for _, r := range d.rows {
 		if r[1] == "" {
 			continue
 		}
-		p.SetX(x)
-		p.text("", 8)
-		if r[0] == "" {
-			p.MultiCell(w, 4, r[1], "", "L", false)
-			continue
-		}
-		p.CellFormat(28, 4, r[0], "", 0, "L", false, 0, "")
-		p.MultiCell(w-28, 4, r[1], "", "L", false)
+		p.SetX(x + 4)
+		p.ink(cMuted)
+		p.text("", 8.5)
+		p.CellFormat(30, 4.9, r[0], "", 0, "L", false, 0, "")
+		p.ink(cInk)
+		p.MultiCell(in-30, 4.9, r[1], "", "L", false)
 	}
-	return p.GetY()
+	return p.GetY() + 3
 }
 
-func partyRows(b Party) [][2]string {
+func (p page) box(x, y, w, h float64) {
+	p.draw(cRule)
+	p.RoundedRect(x, y, w, h, 2, "1234", "D")
+}
+
+// panels draws two panels side by side with equal heights; returns the bottom y.
+func (p page) panels(l, r panelData) float64 {
+	p.ensure(45)
+	y, w := p.GetY(), (pageW-5)/2
+	b := max(p.panelContent(margin, y, w, l), p.panelContent(margin+w+5, y, w, r))
+	p.box(margin, y, w, b-y)
+	p.box(margin+w+5, y, w, b-y)
+	p.ink(cInk)
+	return b
+}
+
+func partyPanel(title string, b Party) panelData {
 	st := ""
 	if b.State != nil {
 		st = b.State.Name + " (" + b.State.Code + ")"
 	}
-	return [][2]string{{"", b.Name}, {"", b.Address}, {"State", st}, {"GSTIN", str(b.GSTIN)}, {"Phone", str(b.Phone)}, {"PAN", str(b.PAN)}}
+	return panelData{title: title, lead: b.Name, body: b.Address, rows: [][2]string{{"GSTIN", str(b.GSTIN)}, {"State", st}, {"Phone", str(b.Phone)}, {"PAN", str(b.PAN)}}}
 }
 
 type col struct {
@@ -345,80 +452,161 @@ type col struct {
 	align string
 }
 
-// table draws a header row and body rows; the first wrapped column grows the row height.
+// table draws a header row and body rows; the wrap column may span several lines.
 func (p page) table(cols []col, rows [][]string, wrap int) {
-	p.SetFillColor(246, 238, 217)
-	p.text("B", 7.5)
-	for _, c := range cols {
-		p.CellFormat(c.w, 6, c.head, "1", 0, "C", true, 0, "")
-	}
-	p.Ln(-1)
-	p.text("", 8)
-	for _, r := range rows {
-		parts := p.SplitText(r[wrap], cols[wrap].w-2)
-		h := 5 * float64(max(1, len(parts)))
-		if p.GetY()+h > 277 {
-			p.AddPage()
+	head := func() {
+		p.fill(cTint)
+		p.draw(cRule)
+		p.ink(cMuted)
+		p.text("B", 7.5)
+		p.SetX(margin)
+		for _, c := range cols {
+			p.CellFormat(c.w, 8, c.head, "1", 0, c.align, true, 0, "")
 		}
-		x, y := p.GetX(), p.GetY()
+		p.Ln(-1)
+	}
+	p.SetCellMargin(2)
+	defer p.SetCellMargin(1)
+	p.ensure(20)
+	head()
+	for _, r := range rows {
+		p.text("", 8.5)
+		lines := p.SplitText(r[wrap], cols[wrap].w-4)
+		h := max(8, float64(len(lines))*lh+3.4)
+		if p.GetY()+h > bottomY {
+			p.AddPage()
+			p.SetY(margin)
+			head()
+			p.text("", 8.5)
+		}
+		p.ink(cInk)
+		p.draw(cRule)
+		x, y := margin, p.GetY()
 		for i, c := range cols {
 			if i == wrap {
 				p.Rect(x, y, c.w, h, "D")
-				p.SetXY(x+1, y)
-				p.MultiCell(c.w-2, 5, r[i], "", "L", false)
-				p.SetXY(x+c.w, y)
+				p.SetXY(x, y+1.7)
+				p.MultiCell(c.w, lh, r[i], "", "L", false)
 			} else {
+				p.SetXY(x, y)
 				p.CellFormat(c.w, h, r[i], "1", 0, c.align, false, 0, "")
 			}
 			x += c.w
 		}
-		p.SetXY(10, y+h)
+		p.SetXY(margin, y+h)
 	}
 }
 
-func (p page) totalRow(label, value string, bold bool) {
-	st := ""
-	if bold {
-		st = "B"
-	}
-	p.text(st, 9)
-	p.SetX(110)
-	p.CellFormat(55, 5.5, label, "1", 0, "L", false, 0, "")
-	p.CellFormat(35, 5.5, value, "1", 1, "R", false, 0, "")
+// section prints a small gold heading with space above it.
+func (p page) section(title string) {
+	p.SetY(p.GetY() + 4)
+	p.ensure(18)
+	p.SetX(margin)
+	p.ink(cGold)
+	p.text("B", 7.5)
+	p.CellFormat(pageW, 5, strings.ToUpper(title), "", 1, "L", false, 0, "")
+	p.SetY(p.GetY() + 1)
+	p.ink(cInk)
 }
 
-func (p page) footer(s Seller, pr Print, notes string) {
-	p.Ln(2)
+const totW = 82.0
+
+func (p page) totalRow(label, value string, strong bool) {
+	x := margin + pageW - totW
+	p.SetX(x)
+	p.SetCellMargin(3)
+	defer p.SetCellMargin(1)
+	if strong {
+		p.fill(cTint)
+		p.ink(cInk)
+		p.text("B", 10.5)
+		y := p.GetY() + 1
+		p.SetXY(x, y)
+		p.CellFormat(totW-36, 9, label, "", 0, "L", true, 0, "")
+		p.CellFormat(36, 9, value, "", 1, "R", true, 0, "")
+		p.SetY(y + 10)
+		return
+	}
+	p.ink(cMuted)
+	p.text("", 9)
+	p.CellFormat(totW-36, 6.5, label, "", 0, "L", false, 0, "")
+	p.ink(cInk)
+	p.CellFormat(36, 6.5, value, "", 1, "R", false, 0, "")
+}
+
+// words prints "label" over the amount in words in the left column of the totals band.
+func (p page) words(label, text string) {
+	w := pageW - totW - 8
+	p.SetX(margin)
+	p.ink(cMuted)
 	p.text("", 7.5)
-	b := s.Bank
-	if b.Name != nil || b.AccountNo != nil || b.UPI != nil {
-		parts := []string{}
-		for _, kv := range [][2]string{{"Bank", str(b.Name)}, {"A/c name", str(b.AccountName)}, {"A/c no", str(b.AccountNo)}, {"IFSC", str(b.IFSC)}, {"Branch", str(b.Branch)}, {"UPI", str(b.UPI)}} {
-			if kv[1] != "" {
-				parts = append(parts, kv[0]+": "+kv[1])
-			}
-		}
-		p.MultiCell(pageW, 4, strings.Join(parts, "  ·  "), "", "L", false)
-	}
-	for _, t := range []string{notes, pr.Terms, pr.Declaration, pr.Jurisdiction} {
-		if t != "" {
-			p.MultiCell(pageW, 4, t, "", "L", false)
-		}
-	}
-	if p.GetY() > 255 {
-		p.AddPage()
-	}
-	p.Ln(4)
-	name := s.TradeName
-	if name == "" {
-		name = s.LegalName
-	}
+	p.CellFormat(w, 4.5, label, "", 2, "L", false, 0, "")
+	p.SetX(margin)
+	p.ink(cInk)
 	p.text("B", 8.5)
-	p.CellFormat(pageW, 5, "For "+name, "", 1, "R", false, 0, "")
-	p.Ln(10)
-	p.text("", 8)
-	p.CellFormat(pageW, 4, pr.SignatoryName, "", 1, "R", false, 0, "")
-	p.CellFormat(pageW, 4, "Authorised Signatory", "", 1, "R", false, 0, "")
+	p.MultiCell(w, lh, text, "", "L", false)
+	p.SetY(p.GetY() + 2.5)
+}
+
+// footer: bank details (one per line) beside the signature, then notes/terms/declaration.
+func (p page) footer(s Seller, pr Print, notes string) {
+	p.SetY(p.GetY() + 4)
+	p.ensure(48)
+	y, w := p.GetY(), 100.0
+	b := s.Bank
+	bottom := y + 32
+	if b.Name != nil || b.AccountNo != nil || b.UPI != nil {
+		bottom = max(bottom, p.panelContent(margin, y, w, panelData{title: "Bank details", rows: [][2]string{
+			{"Bank", str(b.Name)}, {"Account name", str(b.AccountName)}, {"Account no", str(b.AccountNo)},
+			{"IFSC", str(b.IFSC)}, {"Branch", str(b.Branch)}, {"UPI", str(b.UPI)}}}))
+		p.box(margin, y, w, bottom-y)
+	}
+	sx, sw := margin+w+8, pageW-w-8
+	p.SetXY(sx, y+3.5)
+	p.ink(cInk)
+	p.text("B", 9)
+	p.MultiCell(sw, 5, "For "+shopName(s), "", "R", false)
+	p.draw(cMuted)
+	p.Line(sx+12, bottom-10, sx+sw, bottom-10)
+	p.SetXY(sx, bottom-9)
+	p.text("", 8.5)
+	p.CellFormat(sw, 4.5, pr.SignatoryName, "", 2, "R", false, 0, "")
+	p.ink(cMuted)
+	p.text("", 7.5)
+	p.CellFormat(sw, 4, "Authorised Signatory", "", 2, "R", false, 0, "")
+	p.SetY(bottom + 4)
+
+	for _, t := range [][2]string{{"Notes", notes}, {"Terms & conditions", pr.Terms}} {
+		if strings.TrimSpace(t[1]) == "" {
+			continue
+		}
+		p.ensure(14)
+		p.SetX(margin)
+		p.ink(cGold)
+		p.text("B", 7.5)
+		p.CellFormat(pageW, 4.5, strings.ToUpper(t[0]), "", 2, "L", false, 0, "")
+		p.SetX(margin)
+		p.ink(cInk)
+		p.text("", 8)
+		p.MultiCell(pageW, 4.2, strings.TrimSpace(t[1]), "", "L", false)
+		p.SetY(p.GetY() + 2)
+	}
+	p.text("", 7.5)
+	decl := p.SplitText(strings.TrimSpace(pr.Declaration), pageW)
+	p.ensure(float64(len(decl))*3.8 + 9)
+	p.ink(cMuted)
+	if len(decl) > 0 && decl[0] != "" {
+		p.SetX(margin)
+		p.MultiCell(pageW, 3.8, strings.TrimSpace(pr.Declaration), "", "L", false)
+	}
+	p.rule(p.GetY()+1.5, cRule, 0.2)
+	p.SetXY(margin, p.GetY()+3)
+	end := "This is a computer-generated document."
+	if pr.Jurisdiction != "" {
+		end = pr.Jurisdiction + "  ·  " + end
+	}
+	p.CellFormat(pageW, 4, end, "", 1, "C", false, 0, "")
+	p.ink(cInk)
 }
 
 func finish(f *fpdf.Fpdf) ([]byte, error) {
@@ -429,6 +617,28 @@ func finish(f *fpdf.Fpdf) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func newPage(created time.Time, logo *Logo) page {
+	f := newDoc(created)
+	f.SetMargins(margin, margin, margin)
+	f.SetAutoPageBreak(false, margin)
+	f.SetLineWidth(0.2)
+	return page{f, logo}
+}
+
+var oldGoldCols = []col{{62, "Description", "L"}, {24, "Gross wt (g)", "R"}, {22, "Less (g)", "R"}, {24, "Net wt (g)", "R"}, {22, "Rate / g", "R"}, {28, "Amount", "R"}}
+
+func oldGoldRows(ls []OldGoldLine) [][]string {
+	out := [][]string{}
+	for _, l := range ls {
+		d := l.Description
+		if l.Purity != nil {
+			d += "\n" + *l.Purity
+		}
+		out = append(out, []string{d, weight(l.GrossWeightMg), weight(l.LessWeightMg), weight(l.NetWeightMg), rs(l.RatePaise), rs(l.AmountPaise)})
+	}
+	return out
+}
+
 // RenderInvoice draws one page set per copy. copies overrides snap.Settings.Copies when non-empty.
 func RenderInvoice(snap Invoice, logo *Logo, copies []string, draft bool) ([]byte, error) {
 	if len(copies) == 0 {
@@ -437,10 +647,7 @@ func RenderInvoice(snap Invoice, logo *Logo, copies []string, draft bool) ([]byt
 	if len(copies) == 0 {
 		copies = []string{"original"}
 	}
-	f := newDoc(docTime(snap.Doc.Date))
-	f.SetMargins(10, 10, 10)
-	f.SetAutoPageBreak(false, 10)
-	p := page{f, logo}
+	p := newPage(docTime(snap.Doc.Date), logo)
 	tax := snap.Doc.Type == "tax_invoice"
 	t := snap.Totals
 	for _, c := range copies {
@@ -451,81 +658,108 @@ func RenderInvoice(snap Invoice, logo *Logo, copies []string, draft bool) ([]byt
 		}
 		p.header(snap.Seller, snap.Doc.Title, label, draft)
 
-		y := p.GetY() + 1
 		pos := ""
 		if snap.Doc.PlaceOfSupply != nil {
 			pos = snap.Doc.PlaceOfSupply.Name + " (" + snap.Doc.PlaceOfSupply.Code + ")"
 		}
-		rc := "No"
-		if snap.Doc.ReverseCharge {
-			rc = "Yes"
+		docRows := [][2]string{{"Invoice no", snap.Doc.No}, {"Invoice date", day(snap.Doc.Date)}}
+		if d := str(snap.Doc.DateOfSupply); d != "" {
+			docRows = append(docRows, [2]string{"Date of supply", day(d)})
 		}
-		docRows := [][2]string{{"Invoice no", snap.Doc.No}, {"Date", snap.Doc.Date}, {"Date of supply", str(snap.Doc.DateOfSupply)}, {"Place of supply", pos}}
+		docRows = append(docRows, [2]string{"Place of supply", pos})
 		if tax {
+			rc := "No"
+			if snap.Doc.ReverseCharge {
+				rc = "Yes"
+			}
 			docRows = append(docRows, [2]string{"Reverse charge", rc})
 		}
-		for _, k := range []string{"eway_bill_no", "buyer_order_no", "dispatch_doc_no", "terms_of_delivery"} {
-			if v := snap.Doc.Refs[k]; v != nil {
-				docRows = append(docRows, [2]string{strings.ReplaceAll(strings.TrimSuffix(k, "_no"), "_", " "), *v})
+		for _, k := range [][2]string{{"eway_bill_no", "E-way bill"}, {"buyer_order_no", "Buyer order"}, {"dispatch_doc_no", "Dispatch doc"}, {"terms_of_delivery", "Delivery terms"}} {
+			if v := snap.Doc.Refs[k[0]]; v != nil {
+				docRows = append(docRows, [2]string{k[1], *v})
 			}
 		}
-		y1 := p.kv(10, y, 92, "", docRows)
-		y2 := p.kv(105, y, 95, "Bill to", partyRows(snap.Buyer))
+		p.SetY(p.panels(panelData{title: "Invoice details", rows: docRows}, partyPanel("Bill to", snap.Buyer)))
 		if snap.Consignee != nil {
-			y2 = p.kv(105, y2+1, 95, "Ship to", partyRows(*snap.Consignee))
+			p.SetY(p.GetY() + 4)
+			p.ensure(40)
+			y := p.GetY()
+			b := p.panelContent(margin, y, pageW, partyPanel("Ship to", *snap.Consignee))
+			p.box(margin, y, pageW, b-y)
+			p.SetY(b)
 		}
-		p.SetXY(10, max(y1, y2)+2)
 
-		cols := []col{{8, "#", "C"}, {58, "Description", "L"}, {16, "HSN", "C"}, {18, "Gross wt", "R"}, {22, "Net wt / Qty", "R"}, {22, "Rate", "R"}, {20, "Making / other", "R"}, {26, "Taxable value", "R"}}
+		p.SetY(p.GetY() + 5)
+		cols := []col{{8, "#", "C"}, {50, "Description", "L"}, {15, "HSN", "C"}, {20, "Gross wt", "R"}, {23, "Net wt / Qty", "R"}, {21, "Rate", "R"}, {20, "Making", "R"}, {25, "Amount", "R"}}
 		rows := [][]string{}
+		derived := false
 		for _, l := range snap.Lines {
-			d := l.Description
+			meta := []string{}
 			if l.Purity != nil {
-				d += " · " + *l.Purity
+				meta = append(meta, *l.Purity)
 			}
 			if l.HUID != nil {
-				d += " · HUID " + *l.HUID
+				meta = append(meta, "HUID "+*l.HUID)
 			}
 			if tax {
-				d += " · GST " + pct(l.GSTRate)
+				meta = append(meta, "GST "+pct(l.GSTRate))
 			}
-			gross, q, rate := "", "", ""
+			d := l.Description
+			if len(meta) > 0 {
+				d += "\n" + strings.Join(meta, "  ·  ")
+			}
+			gross, q, rate := "—", "", ""
 			if l.GrossWeightMg != nil {
-				gross = weight(*l.GrossWeightMg)
+				gross = weight(*l.GrossWeightMg) + " g"
 			}
 			if l.QtyMilli != 0 {
 				q = qty(l.QtyMilli, l.Unit)
 				rate = rs(l.RatePaise)
 				if l.RateDerived {
 					rate += "*"
+					derived = true
 				}
 			}
 			mk := int64(0)
 			if l.Making != nil {
 				mk = l.Making.Paise
 			}
-			extra := ""
+			extra := "—"
 			if mk+l.OtherPaise != 0 {
 				extra = rs(mk + l.OtherPaise)
 			}
 			rows = append(rows, []string{fmt.Sprint(l.SNo), d, str(l.HSN), gross, q, rate, extra, rs(l.TaxablePaise)})
 		}
 		p.table(cols, rows, 1)
+		if derived {
+			p.SetX(margin)
+			p.ink(cMuted)
+			p.text("", 7.5)
+			p.CellFormat(pageW, 5, "* Rate worked out from the total amount.", "", 1, "L", false, 0, "")
+			p.ink(cInk)
+		}
 
 		if tax && len(snap.TaxGroups) > 0 {
-			p.Ln(2)
-			gc := []col{{30, "HSN/SAC", "C"}, {20, "GST rate", "C"}, {40, "Taxable", "R"}, {33, "CGST", "R"}, {33, t.SGSTLabel, "R"}, {34, "IGST", "R"}}
+			p.section("Tax summary (HSN-wise)")
+			var gc []col
 			gr := [][]string{}
-			for _, g := range snap.TaxGroups {
-				gr = append(gr, []string{g.HSN, pct(g.GSTRate), rs(g.TaxablePaise), rs(g.CGSTPaise), rs(g.SGSTPaise), rs(g.IGSTPaise)})
+			if t.SupplyType == "inter" {
+				gc = []col{{40, "HSN / SAC", "C"}, {30, "GST rate", "C"}, {56, "Taxable value", "R"}, {56, "IGST", "R"}}
+				for _, g := range snap.TaxGroups {
+					gr = append(gr, []string{g.HSN, pct(g.GSTRate), rs(g.TaxablePaise), rs(g.IGSTPaise)})
+				}
+			} else {
+				gc = []col{{34, "HSN / SAC", "C"}, {24, "GST rate", "C"}, {44, "Taxable value", "R"}, {40, "CGST", "R"}, {40, t.SGSTLabel, "R"}}
+				for _, g := range snap.TaxGroups {
+					gr = append(gr, []string{g.HSN, pct(g.GSTRate), rs(g.TaxablePaise), rs(g.CGSTPaise), rs(g.SGSTPaise)})
+				}
 			}
 			p.table(gc, gr, 0)
 		}
 
-		p.Ln(2)
-		if p.GetY() > 230 {
-			p.AddPage()
-		}
+		// totals on the right, amount in words on the left
+		p.SetY(p.GetY() + 4)
+		p.ensure(55)
 		top := p.GetY()
 		p.totalRow("Taxable value", rs(t.TaxablePaise), false)
 		if tax {
@@ -544,70 +778,60 @@ func RenderInvoice(snap Invoice, logo *Logo, copies []string, draft bool) ([]byt
 		}
 		p.totalRow("Grand total (₹)", rs(t.GrandTotalPaise), true)
 		if t.OldGoldPaise != 0 {
-			p.totalRow("Less: old gold ("+snap.OldGold.VoucherNo+")", "-"+rs(t.OldGoldPaise), false)
+			p.totalRow("Less: old gold ("+snap.OldGold.VoucherNo+")", "− "+rs(t.OldGoldPaise), false)
 			p.totalRow("Net payable (₹)", rs(t.NetPayablePaise), true)
 		}
 		bottom := p.GetY()
-		p.SetXY(10, top)
-		p.text("", 8)
-		w := []string{"Amount in words: " + snap.Words.GrandTotal}
+		p.SetY(top + 1)
+		p.words("Amount in words", snap.Words.GrandTotal)
 		if tax && snap.Words.Tax != "" {
-			w = append(w, "Tax in words: "+snap.Words.Tax)
+			p.words("Tax in words", snap.Words.Tax)
 		}
 		if t.OldGoldPaise != 0 {
-			w = append(w, "Net payable: "+snap.Words.NetPayable)
+			p.words("Net payable in words", snap.Words.NetPayable)
 		}
-		for _, s := range w {
-			p.SetX(10)
-			p.MultiCell(96, 4, s, "", "L", false)
-		}
-		p.SetY(max(bottom, p.GetY()) + 2)
+		p.SetY(max(bottom, p.GetY()))
 
 		if og := snap.OldGold; og != nil {
-			p.text("B", 8)
-			p.CellFormat(pageW, 5, "Old gold received in exchange — purchase voucher "+og.VoucherNo+" (no GST)", "", 1, "L", false, 0, "")
-			oc := []col{{70, "Description", "L"}, {24, "Gross wt", "R"}, {22, "Less", "R"}, {24, "Net wt", "R"}, {22, "Rate/g", "R"}, {28, "Amount", "R"}}
-			or := [][]string{}
-			for _, l := range og.Lines {
-				or = append(or, []string{l.Description + " " + str(l.Purity), weight(l.GrossWeightMg), weight(l.LessWeightMg), weight(l.NetWeightMg), rs(l.RatePaise), rs(l.AmountPaise)})
-			}
-			p.table(oc, or, 0)
+			p.section("Old gold received in exchange — voucher " + og.VoucherNo + " (no GST)")
+			p.table(oldGoldCols, oldGoldRows(og.Lines), 0)
 		}
 		p.footer(snap.Seller, snap.Settings, snap.Notes)
 	}
-	return finish(f)
+	return finish(p.Fpdf)
 }
 
 // RenderVoucher draws an old-gold purchase voucher (one copy).
 func RenderVoucher(v Voucher, logo *Logo) ([]byte, error) {
-	f := newDoc(docTime(v.Doc.Date))
-	f.SetMargins(10, 10, 10)
-	f.SetAutoPageBreak(false, 10)
-	p := page{f, logo}
+	p := newPage(docTime(v.Doc.Date), logo)
 	p.AddPage()
 	p.header(v.Seller, v.Doc.Title, "", false)
-	y := p.GetY() + 1
 	settle := map[string]string{"exchange": "Adjusted against invoice " + str(v.InvoiceNo), "paid": "Paid (" + str(v.PaidMode) + ")", "on_account": "Credited to customer account"}[v.Settlement]
 	kind := map[string]string{"individual": "Individual (personal jewellery)", "business": "Unregistered dealer"}[v.SellerKind]
-	y1 := p.kv(10, y, 92, "", [][2]string{{"Voucher no", v.Doc.No}, {"Date", v.Doc.Date}, {"Settlement", settle}, {"Seller type", kind}})
-	y2 := p.kv(105, y, 95, "Purchased from", partyRows(v.From))
-	p.SetXY(10, max(y1, y2)+2)
-	oc := []col{{70, "Description", "L"}, {24, "Gross wt", "R"}, {22, "Less", "R"}, {24, "Net wt", "R"}, {22, "Rate/g", "R"}, {28, "Amount", "R"}}
-	or := [][]string{}
-	for _, l := range v.Lines {
-		or = append(or, []string{l.Description + " " + str(l.Purity), weight(l.GrossWeightMg), weight(l.LessWeightMg), weight(l.NetWeightMg), rs(l.RatePaise), rs(l.AmountPaise)})
-	}
-	p.table(oc, or, 0)
-	p.Ln(2)
+	p.SetY(p.panels(
+		panelData{title: "Voucher details", rows: [][2]string{{"Voucher no", v.Doc.No}, {"Date", day(v.Doc.Date)}, {"Settlement", settle}, {"Seller type", kind}}},
+		partyPanel("Purchased from", v.From)))
+	p.section("Old gold")
+	p.table(oldGoldCols, oldGoldRows(v.Lines), 0)
+	p.SetY(p.GetY() + 6)
+	p.ensure(40)
+	top := p.GetY()
 	if v.Totals.RoundOffPaise != 0 {
 		p.totalRow("Round off", rs(v.Totals.RoundOffPaise), false)
 	}
 	p.totalRow("Total (₹)", rs(v.Totals.TotalPaise), true)
+	bottom := p.GetY()
+	p.SetY(top + 1)
+	p.words("Amount in words", v.Words)
+	p.words("Note", "Purchase of used gold from an unregistered person. No GST charged.")
+	p.SetY(max(bottom, p.GetY()) + 14)
+	p.draw(cMuted)
+	p.Line(margin, p.GetY(), margin+60, p.GetY())
+	p.SetXY(margin, p.GetY()+1)
 	p.text("", 8)
-	p.MultiCell(pageW, 4, "Amount in words: "+v.Words, "", "L", false)
-	p.MultiCell(pageW, 4, "Purchase of used gold from an unregistered person. No GST charged.", "", "L", false)
-	p.Ln(10)
-	p.CellFormat(95, 4, "Seller's signature", "", 0, "L", false, 0, "")
+	p.ink(cMuted)
+	p.CellFormat(60, 4, "Seller's signature", "", 1, "L", false, 0, "")
+	p.ink(cInk)
 	p.footer(v.Seller, Print{SignatoryName: v.Print.SignatoryName}, "")
-	return finish(f)
+	return finish(p.Fpdf)
 }
