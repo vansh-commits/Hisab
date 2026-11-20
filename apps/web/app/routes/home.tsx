@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BillScreen, DesktopDashboard, Fit, HomeScreen, IssuedScreen, KhataScreen, ParticularsScreen, Phone, RatesScreen, ReportsScreen, Reveal, useInView,
 } from "../components/landing-mocks";
+import { InViewArt, JewelArt, Ornament, type Jewel } from "../components/jewel-art";
 
 const SITE = "https://hisab-zeta-opal.vercel.app";
 const DESC = "GST-ready bills for Indian jewellers: weight × rate + making, CGST/SGST/IGST, old gold exchange, khata and reports. Works on your phone.";
@@ -107,8 +108,10 @@ function Story() {
 function Showcase() {
   const [ref, seen] = useInView<HTMLDivElement>(0.2);
   return (
-    <section className="overflow-hidden bg-ink py-20 text-ivory">
-      <div className="mx-auto max-w-6xl px-4">
+    <section className="relative overflow-hidden bg-ink py-20 text-ivory">
+      <InViewArt kind="bangles" className="pointer-events-none absolute -right-16 -top-10 w-64 opacity-30 md:w-96" />
+      <InViewArt kind="jhumka" className="pointer-events-none absolute -bottom-8 -left-12 w-48 opacity-25 md:w-72" />
+      <div className="relative mx-auto max-w-6xl px-4">
         <Reveal className="max-w-2xl">
           <p className="text-sm font-semibold uppercase tracking-widest text-gold-400">Kahin se bhi</p>
           <h2 className="mt-2 font-display text-4xl font-semibold md:text-5xl">Phone par bhi, computer par bhi</h2>
@@ -132,6 +135,8 @@ const FEATURES: [LucideIcon, string, string][] = [
   [BookOpen, "Customer khata", "Udhaar, payments, opening balance — har customer ka ledger."],
 ];
 
+const CARD_ART: Jewel[] = ["necklace", "ring", "bangles", "jhumka", "ring", "necklace"];
+
 export default function Home() {
   return (
     <div className="overflow-x-clip">
@@ -149,6 +154,7 @@ export default function Home() {
       {/* Hero: the phone is already making a bill. */}
       <section className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-10 md:grid-cols-[1.1fr_1fr] md:pt-16">
         <div className="hero-glow absolute -top-20 right-0 -z-10 size-[520px] rounded-full" aria-hidden />
+        <JewelArt kind="necklace" draw className="pointer-events-none absolute -left-28 -top-10 -z-10 w-[340px] opacity-[.10] md:-left-44 md:w-[540px]" />
         <div>
           <span className="rise inline-flex items-center gap-2 rounded-full border border-gold-400/60 bg-white px-3 py-1 text-sm"><ShieldCheck aria-hidden className="size-4 text-green-700" /> GST-ready · Jewellers ke liye</span>
           <h1 className="mt-5 font-display text-5xl font-semibold leading-[1.05] md:text-7xl">Bill banaiye <span className="shimmer">seconds</span> mein.</h1>
@@ -162,6 +168,8 @@ export default function Home() {
           </ul>
         </div>
         <div className="float relative">
+          <JewelArt kind="ring" draw className="art-glow pointer-events-none absolute -right-10 -top-8 hidden w-28 lg:block" />
+          <JewelArt kind="jhumka" draw className="art-glow pointer-events-none absolute -bottom-6 -left-16 hidden w-28 lg:block" />
           <Phone><BillScreen /></Phone>
           <div className="float-chip absolute -left-4 top-24 hidden rounded-2xl border border-gold-400/50 bg-white px-4 py-3 shadow-xl sm:block">
             <div className="text-xs text-ink/60">CGST + SGST</div><div className="money font-semibold">₹12,993.76</div>
@@ -197,11 +205,12 @@ export default function Home() {
       <Showcase />
 
       <section className="mx-auto max-w-6xl px-4 py-20">
-        <Reveal><h2 className="font-display text-4xl font-semibold md:text-5xl">Jeweller ke hisaab se bana hai</h2></Reveal>
+        <Reveal><Ornament className="mb-6 !mx-0" /><h2 className="font-display text-4xl font-semibold md:text-5xl">Jeweller ke hisaab se bana hai</h2></Reveal>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([Icon, t, b], i) => (
             <Reveal key={t} delay={(i % 3) * 100}>
-              <div className="lift group h-full rounded-2xl border border-gold-400/40 bg-white p-6">
+              <div className="lift group relative isolate h-full overflow-hidden rounded-2xl border border-gold-400/40 bg-white p-6">
+                <InViewArt kind={CARD_ART[i % CARD_ART.length]!} className="pointer-events-none absolute -right-3 -top-3 -z-10 w-32 opacity-70 transition-opacity group-hover:opacity-100" />
                 <span className="grid size-12 place-items-center rounded-2xl bg-gold-100 text-gold-600 transition group-hover:bg-gold-600 group-hover:text-white"><Icon aria-hidden className="size-6" /></span>
                 <h3 className="mt-4 text-lg font-semibold">{t}</h3>
                 <p className="mt-1 text-ink/75">{b}</p>
@@ -229,7 +238,7 @@ export default function Home() {
 
       <section id="faq" className="py-20">
         <div className="mx-auto max-w-3xl px-4">
-          <Reveal><h2 className="font-display text-4xl font-semibold md:text-5xl">Sawaal-jawaab</h2></Reveal>
+          <Reveal><Ornament className="mb-6" /><h2 className="text-center font-display text-4xl font-semibold md:text-5xl">Sawaal-jawaab</h2></Reveal>
           <div className="mt-8 divide-y divide-gold-400/40 overflow-hidden rounded-2xl border border-gold-400/40 bg-white">
             {FAQ.map(([q, a]) => (
               <details key={q} className="group p-5">
@@ -244,7 +253,10 @@ export default function Home() {
       </section>
 
       <section className="glow relative overflow-hidden py-24 text-center">
+        <InViewArt kind="jhumka" className="pointer-events-none absolute left-[6%] top-10 hidden w-40 opacity-50 md:block" />
+        <InViewArt kind="jhumka" className="pointer-events-none absolute right-[6%] top-10 hidden w-40 -scale-x-100 opacity-50 md:block" />
         <Reveal>
+          <Ornament className="mb-6" />
           <h2 className="font-display text-4xl font-semibold md:text-6xl">Apni dukaan ko digital banaiye.</h2>
           <p className="mt-4 text-lg text-ink/70">Waitlist join kijiye — approval ke baad 5 minute ka setup.</p>
           <a href="/login" className={`${cta} mt-8`}>Join the waitlist <ArrowRight aria-hidden className="size-5" /></a>
