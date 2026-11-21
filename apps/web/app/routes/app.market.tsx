@@ -1,9 +1,10 @@
-import type { MarketRates, Purity } from "@hisab/api";
-import { ArrowRight, RefreshCw, TriangleAlert } from "lucide-react";
+import type { MarketRates, MetalRate, Purity } from "@hisab/api";
+import { ArrowRight, Check, RefreshCw, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
+import { useMe } from "./app";
 import { api } from "../lib/api";
-import { closes, fmtDay, latest, PURITY } from "../lib/market";
+import { closes, fmtDay, latest, PURITY, withIBJA } from "../lib/market";
 import { fmtINR } from "../lib/money";
 import type { Route } from "./+types/app.market";
 
@@ -72,6 +73,20 @@ export default function Market({ loaderData }: Route.ComponentProps) {
   const year = all.filter((p) => p.day >= new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10)).map((p) => p.v);
   const vals = data.map((p) => p.v);
 
+  const me = useMe();
+  const [applied, setApplied] = useState<string | null>(null);
+  async function applyIBJA() {
+    if (!snap) return;
+    setApplied("…");
+    try {
+      const mine = (await api<{ items: MetalRate[] }>("/metal-rates")).items;
+      await api("/metal-rates", { method: "PUT", body: withIBJA(mine, snap) });
+      setApplied("Saved ✓ — naye bill isi rate se banenge.");
+    } catch {
+      setApplied("Save nahi hua, dobara try karein.");
+    }
+  }
+
   async function refresh() {
     setBusy(true);
     try { setM(await api<MarketRates>("/market-rates/refresh?days=400", { method: "POST" })); } catch { setM({ ...m, stale: true }); }
@@ -117,6 +132,15 @@ export default function Market({ loaderData }: Route.ComponentProps) {
               );
             })}
           </div>
+
+          {me.business?.status === "active" && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button onClick={applyIBJA} disabled={applied === "…"} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-gold-600 px-5 font-semibold text-white shadow-sm transition hover:bg-maroon-700 active:scale-[.98] disabled:opacity-60">
+                <Check aria-hidden className="size-5" /> {applied === "…" ? "Saving…" : "Aaj ka billing rate = IBJA rate"}
+              </button>
+              {applied && applied !== "…" && <span role="status" className="text-sm text-ink/70">{applied}</span>}
+            </div>
+          )}
 
           <section className="mt-5 rounded-2xl border border-gold-400/40 bg-white p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">

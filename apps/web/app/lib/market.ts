@@ -1,4 +1,4 @@
-import type { MarketRate, Purity } from "@hisab/api";
+import type { MarketRate, MetalRate, Purity } from "@hisab/api";
 
 export const PURITY: Record<Purity, { label: string; short: string; silver?: boolean }> = {
   gold999: { label: "Gold 999 (24K)", short: "24K" },
@@ -43,3 +43,14 @@ export const fmtDay = (d: string) => new Date(d + "T00:00:00").toLocaleDateStrin
 
 // IST calendar date of a timestamp, YYYY-MM-DD.
 export const istDay = (t: string | Date) => new Date(t).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+
+// The shop's board with every IBJA-mapped metal set to today's IBJA rate.
+// Default board metals are added if missing; custom metals keep their rate.
+export function withIBJA(mine: MetalRate[], snap: Snapshot): MetalRate[] {
+  const names = [...new Set(["24K", "22K", "18K", "Silver", ...mine.map((r) => r.metal)])];
+  return names.flatMap((metal) => {
+    const p = purityFor(metal);
+    const rate = (p && snap.now[p]) || mine.find((r) => r.metal === metal)?.rate_paise;
+    return rate ? [{ metal, rate_paise: rate }] : [];
+  });
+}

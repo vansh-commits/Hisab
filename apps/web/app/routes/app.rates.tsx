@@ -1,18 +1,20 @@
-import type { MetalRate } from "@hisab/api";
+import type { MarketRates, MetalRate } from "@hisab/api";
 import { useState } from "react";
 import { useRevalidator } from "react-router";
 import { Button, Field, PageTitle } from "../components/ui";
 import { api, ApiError } from "../lib/api";
+import { latest, purityFor } from "../lib/market";
 import { plain, toPaise } from "../lib/money";
 import type { Route } from "./+types/app.rates";
 
 export async function clientLoader() {
-  return (await api<{ items: MetalRate[] }>("/metal-rates")).items;
+  const [mine, market] = await Promise.all([api<{ items: MetalRate[] }>("/metal-rates"), api<MarketRates>("/market-rates?days=10").catch(() => null)]);
+  return { rates: mine.items, ibja: market ? latest(market.items) : null };
 }
 
 const BOARD = ["24K", "22K", "18K", "Silver"];
 
-export default function Rates({ loaderData: rates }: Route.ComponentProps) {
+export default function Rates({ loaderData: { rates, ibja } }: Route.ComponentProps) {
   const { revalidate } = useRevalidator();
   const [rows, setRows] = useState(() => {
     const names = [...BOARD, ...rates.map((r) => r.metal).filter((m) => !BOARD.includes(m))];
@@ -38,7 +40,12 @@ export default function Rates({ loaderData: rates }: Route.ComponentProps) {
   const updated = rates.map((r) => r.updated_at).filter(Boolean).sort().at(-1);
   return (
     <>
-      <PageTitle title="Today's rates" />
+      <PageTitle title="Today's rates" action={ibja && (
+        <button type="button" className="inline-flex min-h-11 items-center rounded-xl border border-gold-400 bg-white px-4 font-semibold transition hover:bg-gold-100"
+          onClick={() => { setRows(rows.map((r) => { const p = purityFor(r.metal); const v = p && ibja.now[p]; return v ? { ...r, rate: plain(v, 2) } : r; })); setMsg("IBJA rate bhar diye — check karke Save dabaiye."); }}>
+          IBJA rate bharein
+        </button>
+      )} />
       <p className="mb-4 text-sm text-ink/70">Per gram. Naye bill mein item chunne par ye rate apne aap aa jayega.{updated && ` Last updated ${new Date(updated).toLocaleString("en-IN")}.`}</p>
       <div className="grid grid-cols-2 gap-3 rounded-2xl border border-gold-400/40 bg-white p-4">
         {rows.map((r, i) => (
