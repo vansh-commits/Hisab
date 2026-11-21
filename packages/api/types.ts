@@ -120,6 +120,10 @@ export interface Settings {
 }
 
 export interface MetalRate { metal: string; rate_paise: Paise; updated_at?: string }
+export type Purity = "gold999" | "gold995" | "gold916" | "gold750" | "gold585" | "silver999";
+// IBJA benchmark (ex-GST), paise per gram. day is YYYY-MM-DD.
+export interface MarketRate { day: string; session: "AM" | "PM"; purity: Purity; paise_per_gram: Paise; fetched_at: string }
+export interface MarketRates { items: MarketRate[]; stale: boolean }
 export interface State { code: string; name: string; is_ut_without_legislature: boolean }
 
 export interface Party {

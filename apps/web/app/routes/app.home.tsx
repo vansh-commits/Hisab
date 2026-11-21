@@ -1,16 +1,18 @@
-import type { HomeData } from "@hisab/api";
+import type { HomeData, MarketRates } from "@hisab/api";
 import { ArrowRight, BookOpen, CalendarDays, Coins, IndianRupee, Plus, ReceiptIndianRupee, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 import { BillRows } from "../components/bills";
 import { btn, Empty } from "../components/ui";
 import { api } from "../lib/api";
+import { latest, purityFor } from "../lib/market";
 import { fmtINR } from "../lib/money";
 import { useCountUp } from "../lib/motion";
 import type { Route } from "./+types/app.home";
 import { readOnly, useMe } from "./app";
 
 export async function clientLoader() {
-  return api<HomeData>("/home");
+  const [home, market] = await Promise.all([api<HomeData>("/home"), api<MarketRates>("/market-rates?days=10").catch(() => null)]);
+  return { ...home, ibja: market ? latest(market.items) : null };
 }
 
 function Stat({ label, paise, sub, icon: Icon, tone }: { label: string; paise: number; sub: string; icon: LucideIcon; tone: string }) {
@@ -69,13 +71,14 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
       <section className="mt-7">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-semibold"><TrendingUp aria-hidden className="size-4 text-gold-600" /> Today's rates (per gram)</h2>
-          <Link to="/app/rates" className="text-sm text-gold-600 underline-offset-4 hover:underline">Update</Link>
+          <span className="flex gap-3 text-sm"><Link to="/app/market" className="text-gold-600 underline-offset-4 hover:underline">Market rates</Link><Link to="/app/rates" className="text-gold-600 underline-offset-4 hover:underline">Update</Link></span>
         </div>
         {d.rates.length ? (
           <div className="stagger flex flex-wrap gap-2">
             {d.rates.map((r) => (
               <span key={r.metal} className="money rounded-full border border-gold-400/60 bg-white px-3 py-1.5 text-sm">
                 <b>{r.metal}</b> {fmtINR(r.rate_paise)}
+                {(() => { const p = purityFor(r.metal); const v = p && d.ibja?.now[p]; return v ? <span className="ml-1.5 text-xs text-ink/50">IBJA {fmtINR(v)}</span> : null; })()}
               </span>
             ))}
           </div>

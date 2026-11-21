@@ -165,6 +165,14 @@ type Logo struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type MarketRate struct {
+	Day          pgtype.Date `json:"day"`
+	Session      string      `json:"session"`
+	Purity       string      `json:"purity"`
+	PaisePerGram int64       `json:"paise_per_gram"`
+	FetchedAt    time.Time   `json:"fetched_at"`
+}
+
 type Membership struct {
 	BusinessID string    `json:"business_id"`
 	UserID     string    `json:"user_id"`

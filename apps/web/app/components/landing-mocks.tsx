@@ -1,5 +1,5 @@
 import { BookOpen, ChartColumn, Check, Coins, Download, Gem, House, Plus, ReceiptIndianRupee, Share2, TrendingUp } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 // Faithful mini replicas of the real app screens for the landing page (no screenshots to go stale).
 
@@ -73,17 +73,61 @@ const Card = ({ children, className = "", delay }: { children: ReactNode; classN
 export function RatesScreen() {
   return (
     <>
-      <AppBar title="Today's rates" />
+      <AppBar title="Aaj ka rate" />
       <div className="space-y-2 p-3">
-        <div className="font-display text-lg font-semibold">Today's rates</div>
-        {[["24K", "14,680"], ["22K", "13,457"], ["18K", "11,010"], ["Silver", "95"]].map(([m, r], i) => (
-          <Card key={m} className="mock-pop flex items-center justify-between" delay={i * 90}>
-            <span className="font-semibold">{m}</span>
-            <span className="money rounded-lg border border-gold-400/60 px-2 py-1">₹ {r}</span>
+        <div className="font-display text-lg font-semibold leading-tight">Aaj ka rate set karein</div>
+        <p className="text-[10px] text-ink/55">IBJA AM rate · per gram · GST alag</p>
+        {[["24K", "12,389", "12,389"], ["22K", "11,400", "11,349"], ["18K", "9,292", "9,292"], ["Silver", "152.53", "152.53"]].map(([m, mine, ibja], i) => (
+          <Card key={m} className="mock-pop flex items-center gap-2" delay={i * 90}>
+            <span className="w-10 font-semibold">{m}</span>
+            <span className="money flex-1 rounded-lg border border-gold-400/60 px-2 py-1">₹ {mine}</span>
+            <span className="money rounded-lg bg-gold-100 px-1.5 py-1 text-right text-[9px] leading-tight"><span className="block text-ink/50">IBJA</span>₹{ibja}</span>
           </Card>
         ))}
-        <div className="mt-2 rounded-xl bg-gold-600 py-2.5 text-center font-semibold text-white">Save rates</div>
-        <p className="text-center text-[10px] text-ink/50">Naye bill mein ye rate apne aap aa jayega</p>
+        <p className="text-[10px] font-semibold text-gold-600">Sab IBJA rate use karein</p>
+        <div className="rounded-xl bg-gold-600 py-2.5 text-center font-semibold text-white">Save & billing shuru</div>
+      </div>
+      <Tabs active={0} />
+    </>
+  );
+}
+
+// Market rates dashboard: IBJA cards + a gold area chart that draws in.
+const CURVE = [62, 58, 60, 52, 55, 47, 50, 41, 44, 36, 40, 33, 37, 28, 31, 24];
+export function MarketScreen() {
+  const fill = useId(); // unique: the same mock renders in hidden + visible phones
+  const pts = CURVE.map((y, i) => `${(i * 220) / (CURVE.length - 1)},${y}`).join(" ");
+  return (
+    <>
+      <AppBar title="Market rates" />
+      <div className="space-y-2 p-3">
+        <div className="flex items-center justify-between">
+          <span className="font-display text-lg font-semibold">Market rates</span>
+          <span className="rounded-lg border border-gold-400 px-2 py-0.5 text-[10px] font-semibold">↻ Refresh</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {[["Gold 999", "12,389", "▲ ₹31 (0.25%)", true], ["Silver 999", "152.53", "▲ ₹1.9 (1.25%)", true], ["Gold 916", "11,349", "▲ ₹28 (0.25%)", true], ["Gold 750", "9,292", "▼ ₹12 (0.13%)", false]].map(([l, v, c, up], i) => (
+            <Card key={l as string} className={`mock-pop ${i === 0 ? "ring-1 ring-gold-400" : ""}`} delay={i * 90}>
+              <span className="block text-[9px] font-semibold uppercase tracking-wider text-gold-600">{l}</span>
+              <span className="money block text-sm font-semibold">₹{v}<span className="text-[9px] font-normal text-ink/50">/g</span></span>
+              <span className={`money text-[9px] font-semibold ${up ? "text-emerald-700" : "text-red-700"}`}>{c}</span>
+            </Card>
+          ))}
+        </div>
+        <Card className="mock-pop" delay={400}>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">Gold 999</span>
+            <span className="flex gap-1 text-[9px]">{["1W", "1M", "3M", "1Y"].map((r) => <span key={r} className={`rounded px-1 ${r === "1M" ? "bg-gold-100 font-semibold text-gold-600" : "text-ink/50"}`}>{r}</span>)}</span>
+          </div>
+          <svg viewBox="0 0 220 70" className="mt-1 w-full" aria-hidden>
+            <defs><linearGradient id={fill} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#c9a44c" stopOpacity=".45" /><stop offset="1" stopColor="#c9a44c" stopOpacity="0" /></linearGradient></defs>
+            <polygon points={`0,70 ${pts} 220,70`} fill={`url(#${fill})`} />
+            <polyline points={pts} fill="none" stroke="#9a7b2f" strokeWidth="1.8" strokeLinejoin="round" pathLength={1} className="mock-line" />
+          </svg>
+          <div className="mt-1 grid grid-cols-3 gap-1 text-[9px]">
+            {[["High", "12,560"], ["Low", "11,890"], ["Avg", "12,210"]].map(([k, v]) => <span key={k}><span className="block text-ink/50">{k}</span><b className="money">₹{v}</b></span>)}
+          </div>
+        </Card>
       </div>
       <Tabs active={0} />
     </>

@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -18,6 +19,7 @@ import (
 
 	"hisab/internal/db"
 	"hisab/internal/email"
+	"hisab/internal/ibja"
 )
 
 type Config struct {
@@ -29,6 +31,7 @@ type Config struct {
 	GoogleSecret   string
 	GoogleAuthURL  string // overridable in tests
 	GoogleTokenURL string
+	IBJAURL        string // overridable in tests
 }
 
 type Server struct {
@@ -39,6 +42,9 @@ type Server struct {
 
 	mu     sync.Mutex
 	states map[string]db.State // static reference data, loaded once
+
+	marketTry time.Time // last IBJA fetch attempt
+	marketErr error
 }
 
 func New(pool *pgxpool.Pool, cfg Config, send email.Send) *Server {
@@ -47,6 +53,9 @@ func New(pool *pgxpool.Pool, cfg Config, send email.Send) *Server {
 	}
 	if cfg.GoogleAuthURL == "" {
 		cfg.GoogleAuthURL = "https://accounts.google.com/o/oauth2/v2/auth"
+	}
+	if cfg.IBJAURL == "" {
+		cfg.IBJAURL = ibja.URL
 	}
 	if cfg.GoogleTokenURL == "" {
 		cfg.GoogleTokenURL = "https://oauth2.googleapis.com/token"
@@ -225,6 +234,8 @@ func (s *Server) tenantRoutes() map[string]http.HandlerFunc {
 		"PUT /api/settings/number-series": t(rw, s.putNumberSeries),
 		"GET /api/metal-rates":            t(ro, s.getRates),
 		"PUT /api/metal-rates":            t(rw, s.putRates),
+		"GET /api/market-rates":           t(ro, s.getMarket),
+		"POST /api/market-rates/refresh":  t(ro, s.refreshMarket),
 		"GET /api/onboarding":             t(rw, s.getOnboarding),
 		"PATCH /api/onboarding":           t("approved", s.patchOnboarding),
 		"POST /api/onboarding/complete":   t("approved", s.completeOnboarding),

@@ -125,7 +125,7 @@ export function PageSkeleton({ path }: { path: string }) {
   else if (path === "/app/bills") body = <List tabs />;
   else if (path.startsWith("/app/bills/")) body = <BillView />;
   else if (path.startsWith("/app/customers/")) body = <Ledger />;
-  else if (path.startsWith("/app/reports")) body = <Report />;
+  else if (path.startsWith("/app/reports") || path.startsWith("/app/market")) body = <Report />;
   else if (path.startsWith("/app/settings") || path.startsWith("/app/rates") || path.startsWith("/app/onboarding") || path.startsWith("/app/waitlist")) body = <Form />;
   else body = <List />;
   return (

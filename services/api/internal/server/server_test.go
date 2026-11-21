@@ -23,12 +23,14 @@ import (
 const origin = "https://hisab.test"
 
 type harness struct {
-	t    *testing.T
-	s    *Server
-	h    http.Handler
-	mu   sync.Mutex
-	sent []email.Message
-	idp  *httptest.Server
+	t        *testing.T
+	s        *Server
+	h        http.Handler
+	mu       sync.Mutex
+	sent     []email.Message
+	idp      *httptest.Server
+	ibja     *httptest.Server
+	ibjaDown bool // stub IBJA returns 500
 	// claims the stub IdP puts in the next id_token
 	claims map[string]any
 }
@@ -50,7 +52,7 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	if _, err := pool.Exec(ctx, "TRUNCATE users, businesses, audit_log CASCADE"); err != nil {
+	if _, err := pool.Exec(ctx, "TRUNCATE users, businesses, audit_log, market_rates CASCADE"); err != nil {
 		t.Fatal(err)
 	}
 	hs := &harness{t: t}
@@ -63,8 +65,19 @@ func newHarness(t *testing.T) *harness {
 		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "a", "token_type": "Bearer", "expires_in": 3600, "id_token": tok})
 	}))
 	t.Cleanup(hs.idp.Close)
+	fixture, _ := os.ReadFile("../ibja/testdata/home.html")
+	hs.ibja = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hs.mu.Lock()
+		defer hs.mu.Unlock()
+		if hs.ibjaDown {
+			w.WriteHeader(500)
+			return
+		}
+		_, _ = w.Write(fixture)
+	}))
+	t.Cleanup(hs.ibja.Close)
 	hs.s = New(pool, Config{AppOrigin: origin, AdminEmails: map[string]bool{"admin@example.com": true},
-		GoogleClientID: "client-1", GoogleSecret: "secret", GoogleTokenURL: hs.idp.URL + "/token"},
+		GoogleClientID: "client-1", GoogleSecret: "secret", GoogleTokenURL: hs.idp.URL + "/token", IBJAURL: hs.ibja.URL},
 		func(_ context.Context, m email.Message) error {
 			hs.mu.Lock()
 			defer hs.mu.Unlock()

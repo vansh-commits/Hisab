@@ -1,7 +1,7 @@
-import { ArrowRight, BookOpen, Calculator, ChartColumn, Check, Coins, FileText, Gem, Lock, RefreshCw, Scale, ShieldCheck, Smartphone, TrendingUp, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpen, Calculator, ChartColumn, ChartLine, Check, Coins, FileText, Gem, Lock, Scale, ShieldCheck, Smartphone, TrendingUp, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  BillScreen, DesktopDashboard, Fit, HomeScreen, IssuedScreen, KhataScreen, ParticularsScreen, Phone, RatesScreen, ReportsScreen, Reveal, useInView,
+  BillScreen, DesktopDashboard, Fit, HomeScreen, IssuedScreen, KhataScreen, MarketScreen, ParticularsScreen, Phone, RatesScreen, ReportsScreen, Reveal, useInView,
 } from "../components/landing-mocks";
 import { InViewArt, JewelArt, Ornament, type Jewel } from "../components/jewel-art";
 
@@ -12,6 +12,7 @@ const FAQ = [
   ["Kya ye free hai?", "Early-access ke dauraan haan, free hai. Pricing aane se pehle aapko bata denge."],
   ["Mera data safe hai?", "Data encrypted backups ke saath roz save hota hai. Aapka data sirf aapka hai — kabhi bhi export kar sakte hain. Hum use bechte ya ads ke liye use nahi karte."],
   ["Bina GST registration ke chalega?", "Haan. Composition ya unregistered dukaan ke liye Hisab apne aap Bill of Supply banata hai (bina GST)."],
+  ["Gold-silver ka rate kahan se aata hai?", "IBJA se — jo jewellers ka benchmark rate hai (din mein do baar, GST alag). Aap apna rate kabhi bhi badal sakte hain."],
   ["Phone pe chalega?", "Haan — Hisab phone ke liye hi banaya gaya hai. Bill banaiye, PDF share kijiye, sab phone se."],
   ["E-invoice / e-way bill?", "Abhi nahi. Ye baad mein aayega; bill ke columns pehle se ready hain."],
 ] as const;
@@ -41,7 +42,8 @@ const cta = "inline-flex min-h-12 cursor-pointer items-center justify-center gap
 // ── The scroll story: as each chapter scrolls past, the sticky phone shows that screen ──
 
 const STORY: { icon: LucideIcon; time: string; title: string; body: string; screen: (on: boolean) => ReactNode }[] = [
-  { icon: TrendingUp, time: "10:00", title: "Dukaan khuli, bhav set", body: "Subah ek baar 24K, 22K, 18K aur Silver ka rate daaliye. Din bhar har bill mein wahi rate apne aap.", screen: () => <RatesScreen /> },
+  { icon: TrendingUp, time: "10:00", title: "Dukaan khuli, IBJA ka bhav ready", body: "Subah Hisab IBJA ka aaj ka rate dikhata hai. Check kijiye, chahein to badliye, save. Din bhar har bill mein wahi rate apne aap.", screen: () => <RatesScreen /> },
+  { icon: ChartLine, time: "10:01", title: "Bazaar ka graph, stock jaisa", body: "Gold 999, 916, 750 aur Silver — aaj kitna upar-neeche hua, aur hafte, mahine, saal ka graph. High, low, average ek nazar mein.", screen: () => <MarketScreen /> },
   { icon: Gem, time: "10:05", title: "Particulars ek baar, hamesha ke liye", body: "Chain, bangles, ring, job work — HSN, GST, purity, making ek baar. Bill mein bas dropdown.", screen: () => <ParticularsScreen /> },
   { icon: Calculator, time: "11:30", title: "Customer aaya — bill 30 second mein", body: "Customer chuniye, chain chuniye, weight daaliye. CGST/SGST, round off, amount in words — sab khud.", screen: (on) => <BillScreen play={on} /> },
   { icon: Coins, time: "11:31", title: "Purana sona? Usi bill par", body: "“Purana sona lein” tick kijiye — old gold minus, net payable ready, purchase voucher bhi ban gaya.", screen: (on) => <BillScreen oldGold play={on} /> },
@@ -127,8 +129,8 @@ function Showcase() {
 }
 
 const FEATURES: [LucideIcon, string, string][] = [
-  [Scale, "Weight × rate + making", "Per gram, flat ya % making — ek hi line mein. Aaj ka rate apne aap."],
-  [RefreshCw, "Total se bill", "Customer ne total bataya? “Total se” — rate aur GST Hisab nikaal dega."],
+  [Scale, "Weight × rate + making", "Per gram, flat ya % making. Customer ne total bataya? “Total se” — rate aur GST Hisab nikaal dega."],
+  [TrendingUp, "Roz ka IBJA rate", "Gold-silver ka IBJA rate apne aap aata hai. Subah check karke set kijiye, aur graph mein trend dekhiye."],
   [Calculator, "CGST / SGST / IGST automatic", "Place of supply GST law ke hisaab se. Aapko sochna nahi padega."],
   [Coins, "Purana sona exchange", "Old gold usi bill par minus — purchase voucher bhi apne aap."],
   [FileText, "PDF: customer + shop copy", "Ek click mein PDF, WhatsApp share. HSN summary, amount in words."],

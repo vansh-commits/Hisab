@@ -3,7 +3,8 @@ import { useState } from "react";
 import { NavLink, Outlet, redirect, useLocation, useNavigate, useNavigation, useRouteLoaderData } from "react-router";
 import { AppShellSkeleton, PageSkeleton } from "../components/skeleton";
 import { Tour } from "../components/tour";
-import { BookOpen, ChartColumn, ChevronDown, CircleHelp, Coins, Gem, House, LogOut, Plus, ReceiptIndianRupee, Settings, TrendingUp, type LucideIcon } from "lucide-react";
+import { RateCheck } from "../components/rate-check";
+import { BookOpen, ChartColumn, ChartLine, ChevronDown, CircleHelp, Coins, Gem, House, LogOut, Plus, ReceiptIndianRupee, Settings, TrendingUp, type LucideIcon } from "lucide-react";
 import { api, ApiError } from "../lib/api";
 import type { Route } from "./+types/app";
 
@@ -101,6 +102,7 @@ const SIDEBAR: { title?: string; links: Link[] }[] = [
       { to: "/app/customers", label: "Customers (khata)", icon: BookOpen, tour: "customers" },
       { to: "/app/items", label: "Particulars", icon: Gem, tour: "items" },
       { to: "/app/rates", label: "Today's rates", icon: TrendingUp, tour: "rates" },
+      { to: "/app/market", label: "Market rates", icon: ChartLine, tour: "market" },
       { to: "/app/reports", label: "Reports", icon: ChartColumn, tour: "reports" },
       { to: "/app/settings", label: "Settings", icon: Settings, tour: "settings" },
     ],
@@ -117,6 +119,7 @@ const TABS: (Link & { primary?: boolean })[] = [
 const MORE: Link[] = [
   { to: "/app/old-gold", label: "Old gold", icon: Coins, tour: "old-gold" },
   { to: "/app/rates", label: "Today's rates", icon: TrendingUp, tour: "rates" },
+  { to: "/app/market", label: "Market rates", icon: ChartLine, tour: "market" },
   { to: "/app/reports", label: "Reports", icon: ChartColumn, tour: "reports" },
   { to: "/app/settings", label: "Settings", icon: Settings, tour: "settings" },
 ];
@@ -213,6 +216,7 @@ export default function AppLayout({ loaderData: me }: Route.ComponentProps) {
       </div>
 
       <Tour />
+      {me.business?.status === "active" && <RateCheck />}
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-gold-400/40 bg-white/95 pb-[env(safe-area-inset-bottom)] text-[11px] backdrop-blur md:hidden print:hidden">
         {TABS.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} data-tour={n.tour}

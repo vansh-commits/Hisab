@@ -19,6 +19,7 @@ export default [
     route("old-gold", "routes/app.old-gold.tsx"),
     route("reports", "routes/app.reports.tsx"),
     route("rates", "routes/app.rates.tsx"),
+    route("market", "routes/app.market.tsx"),
     route("settings", "routes/app.settings.tsx"),
   ]),
 ] satisfies RouteConfig;
