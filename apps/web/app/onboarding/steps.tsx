@@ -280,21 +280,28 @@ function Numbering({ d, err }: StepProps) {
 
 function Print({ d, me }: StepProps) {
   const s = d.settings;
+  const [labels, setLabels] = useState(s.copies.length ? s.copies : ["Customer", "Store"]);
   return (
     <StepForm
       onSave={(f) => {
-        const copies = f.getAll("copies").map(String) as Settings["copies"];
-        if (!copies.length) return fieldErr("Choose at least one copy", {});
+        const copies = f.getAll("copies").map((x) => String(x).trim());
+        if (copies.some((c) => !c)) return fieldErr("Give every copy a label", {});
         return patchSettings({ copies, terms: str(f, "terms"), declaration: str(f, "declaration"), jurisdiction: str(f, "jurisdiction"), signatory_name: str(f, "signatory_name") });
       }}
     >
       <Heading title="Print settings" sub="Defaults theek hain — seedha Next bhi daba sakte hain." />
-      <fieldset className="grid gap-2 sm:grid-cols-2">
-        <legend className="mb-1 text-sm font-medium">Copies in each PDF</legend>
-        {([["original", "Customer copy (Original)"], ["duplicate", "Shop copy (Duplicate)"]] as const).map(([c, label]) => (
-          <Check key={c} name="copies" value={c} defaultChecked={s.copies.includes(c)} label={label} />
+      <Select label="Copies in each PDF" value={labels.length} onChange={(e) => {
+        const n = Number(e.target.value);
+        setLabels((l) => Array.from({ length: n }, (_, i) => l[i] ?? ["Customer", "Store"][i] ?? `Copy ${i + 1}`));
+      }}>
+        {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+      </Select>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {labels.map((l, i) => (
+          <Field key={i} label={`Copy ${i + 1} label`} name="copies" value={l} maxLength={30} required
+            onChange={(e) => setLabels((ls) => ls.map((x, j) => (j === i ? e.target.value : x)))} />
         ))}
-      </fieldset>
+      </div>
       <Field label="Jurisdiction line" name="jurisdiction" defaultValue={s.jurisdiction || `Subject to ${d.biz.city ?? ""} jurisdiction`} />
       <Field label="Authorised signatory" name="signatory_name" defaultValue={s.signatory_name || me.user.name} />
       <TextArea label="Terms (optional)" name="terms" defaultValue={s.terms} placeholder="Goods once sold will not be taken back." />

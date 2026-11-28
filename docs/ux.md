@@ -51,7 +51,7 @@ SEO covers: `<title>`/meta per route, Open Graph image, JSON-LD (`SoftwareApplic
 | 3 | Address & contact | address, city, pincode, state (preselected from GSTIN, locked if GSTIN present), phone, email (prefilled from Google) | ✓ | The state code is shown next to the name ("Rajasthan · 08"). |
 | 4 | Logo | upload/crop | optional | Client-side crop and resize to 512 px, WebP/PNG, ≤200 KB before upload. The preview shows the logo on a mini invoice header. |
 | 5 | Invoice numbering | prefix, include FY, starting number, min digits, FY reset | ✓ (prefilled) | **Live preview**: `SJ/26-27/0148` with a 16-character meter. Helper: "Purani bill book ka agla number daaliye". |
-| 6 | Print settings | copies (Original/Duplicate/Triplicate checkboxes), terms, declaration, jurisdiction, signatory | prefilled | Sensible defaults, so Next works without typing. |
+| 6 | Print settings | number of copies (1–5) + a label for each (default Customer, Store), terms, declaration, jurisdiction, signatory | prefilled | Sensible defaults, so Next works without typing. |
 | 7 | Bank details | bank, account, IFSC, branch, UPI ID | optional | IFSC format check. A UPI QR on the invoice is a later feature. |
 | 8 | Defaults & rates | default GST rate (3%), making charge mode and value, **today's rates** board (24K/22K/18K/silver) | prefilled | Covers "ask the amounts" (Q1). |
 | 9 | Customers | add several (name, phone, state, GSTIN, opening balance, bill/ship address collapsed) | optional | Rows animate in (`layout`). "Baad mein bhi add kar sakte hain". `POST /api/parties/bulk`. |

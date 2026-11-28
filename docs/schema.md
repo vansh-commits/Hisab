@@ -127,8 +127,8 @@ CREATE TABLE business_settings (
   number_min_digits smallint NOT NULL DEFAULT 3 CHECK (number_min_digits BETWEEN 1 AND 8),
   fy_reset         boolean NOT NULL DEFAULT true,
   -- print
-  copies           text[] NOT NULL DEFAULT '{original}'
-                   CHECK (copies <@ ARRAY['original','duplicate','triplicate'] AND cardinality(copies) >= 1),
+  copies           text[] NOT NULL DEFAULT '{Customer,Store}'  -- free-text copy labels
+                   CHECK (cardinality(copies) BETWEEN 1 AND 5 AND array_position(copies, '') IS NULL),
   terms            text NOT NULL DEFAULT '',
   declaration      text NOT NULL DEFAULT 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.',
   jurisdiction     text NOT NULL DEFAULT '',          -- "Subject to Jaipur jurisdiction"
@@ -441,7 +441,7 @@ Standalone vouchers (`docs.IssueVoucher`) use the same numbering pattern with `d
   "old_gold": { "voucher_no": "PV/26-27/007", "lines": [ { "description": "Old gold ornaments", "purity": "22K",
                 "gross_weight_mg": 10500, "less_weight_mg": 300, "net_weight_mg": 10200, "rate_paise": 1280000, "amount_paise": 13056000 } ],
                 "round_off_paise": 0, "total_paise": 13056000 },     // null when no exchange
-  "settings": { "copies": ["original","duplicate","triplicate"], "terms": "…", "declaration": "…", "jurisdiction": "…", "signatory_name": "…" }
+  "settings": { "copies": ["Customer","Store"], "terms": "…", "declaration": "…", "jurisdiction": "…", "signatory_name": "…" }
 }
 ```
 The logo bytes aren't copied into the snapshot. `logo_id` points at an immutable `logos` row, which is never deleted while referenced. The Go PDF template (versioned) produces amount-in-words and Indian formatting from these integers. **PDFs are never stored**: snapshot + template version = the same PDF every time.

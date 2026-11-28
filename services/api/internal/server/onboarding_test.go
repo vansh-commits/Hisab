@@ -98,8 +98,8 @@ func TestOnboardingFlow(t *testing.T) {
 		t.Fatalf("series: %v", st)
 	}
 	expect(t, hs.do("PATCH", "/api/settings", map[string]any{"invoice_prefix": "ABCDEFGH", "number_min_digits": 8}, c), 422, "longer than 16")
-	expect(t, hs.do("PATCH", "/api/settings", map[string]any{"bank_ifsc": "hdfc0001234", "copies": []string{"original", "duplicate"}}, c), 200, `"HDFC0001234"`)
-	expect(t, hs.do("PATCH", "/api/settings", map[string]any{"copies": []string{"quadruplicate"}}, c), 422)
+	expect(t, hs.do("PATCH", "/api/settings", map[string]any{"bank_ifsc": "hdfc0001234", "copies": []string{"Customer", "Store"}}, c), 200, `"HDFC0001234"`)
+	expect(t, hs.do("PATCH", "/api/settings", map[string]any{"copies": []string{""}}, c), 422)
 
 	// Rate board replaces the whole set.
 	expect(t, hs.do("PUT", "/api/metal-rates", []map[string]any{{"metal": "22K", "rate_paise": 1345700}, {"metal": "22k", "rate_paise": 1}}, c), 422, "unique")

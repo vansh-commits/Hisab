@@ -192,7 +192,7 @@ type Logo struct {
 
 // ── rendering ────────────────────────────────────────────────────────────
 
-// One copy is for the customer, one stays with the shop. Triplicate is kept for old settings.
+// Copies are shop-chosen labels ("Customer", "Store"); old snapshots still hold these keys.
 var copyLabel = map[string]string{
 	"original":   "ORIGINAL — CUSTOMER COPY",
 	"duplicate":  "DUPLICATE — SHOP COPY",
@@ -639,20 +639,30 @@ func oldGoldRows(ls []OldGoldLine) [][]string {
 	return out
 }
 
-// RenderInvoice draws one page set per copy. copies overrides snap.Settings.Copies when non-empty.
-func RenderInvoice(snap Invoice, logo *Logo, copies []string, draft bool) ([]byte, error) {
-	if len(copies) == 0 {
-		copies = snap.Settings.Copies
+// copyTitle turns a copy label into its page header: "Store" → "STORE COPY".
+func copyTitle(c string) string {
+	if l, ok := copyLabel[c]; ok {
+		return l
 	}
+	l := strings.ToUpper(strings.TrimSpace(c))
+	if !strings.Contains(l, "COPY") {
+		l += " COPY"
+	}
+	return l
+}
+
+// RenderInvoice draws one page set per copy label in snap.Settings.Copies.
+func RenderInvoice(snap Invoice, logo *Logo, draft bool) ([]byte, error) {
+	copies := snap.Settings.Copies
 	if len(copies) == 0 {
-		copies = []string{"original"}
+		copies = []string{"Customer"}
 	}
 	p := newPage(docTime(snap.Doc.Date), logo)
 	tax := snap.Doc.Type == "tax_invoice"
 	t := snap.Totals
 	for _, c := range copies {
 		p.AddPage()
-		label := copyLabel[c]
+		label := copyTitle(c)
 		if draft {
 			label = "DRAFT — NOT A VALID INVOICE"
 		}

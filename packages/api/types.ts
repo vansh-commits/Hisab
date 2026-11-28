@@ -101,7 +101,7 @@ export interface Settings {
   include_fy: boolean;
   number_min_digits: number;
   fy_reset: boolean;
-  copies: ("original" | "duplicate" | "triplicate")[];
+  copies: string[]; // copy labels, one page set each
   terms: string;
   declaration: string;
   jurisdiction: string;

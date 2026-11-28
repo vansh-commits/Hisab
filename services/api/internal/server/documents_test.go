@@ -17,7 +17,7 @@ func (hs *harness) active(emailAddr string) *http.Cookie {
 	c := hs.approved(emailAddr)
 	expect(hs.t, hs.do("PATCH", "/api/business", map[string]any{"registration_type": "regular", "gstin": "27AAPFU0939F1ZV",
 		"legal_name": "Soni Jewellers", "trade_name": "Soni Jewellers", "address_line1": "12 Zaveri Bazaar", "city": "Mumbai", "pincode": "400002"}, c), 200)
-	expect(hs.t, hs.do("PATCH", "/api/settings", map[string]any{"invoice_prefix": "SJ/", "number_min_digits": 4, "copies": []string{"original", "duplicate"}}, c), 200)
+	expect(hs.t, hs.do("PATCH", "/api/settings", map[string]any{"invoice_prefix": "SJ/", "number_min_digits": 4, "copies": []string{"Customer", "Store"}}, c), 200)
 	expect(hs.t, hs.do("POST", "/api/onboarding/complete", nil, c), 200)
 	return c
 }

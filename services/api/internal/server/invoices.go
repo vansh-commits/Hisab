@@ -946,18 +946,10 @@ func (s *Server) invoicePDF(w http.ResponseWriter, r *http.Request) {
 		fail(w, r, err)
 		return
 	}
-	var copies []string
-	if c := r.URL.Query().Get("copies"); c != "" {
-		for _, x := range strings.Split(c, ",") {
-			if _, ok := map[string]bool{"original": true, "duplicate": true, "triplicate": true}[x]; ok {
-				copies = append(copies, x)
-			}
-		}
-	}
 	if inv.Status == "cancelled" {
 		snap.Doc.Title = "CANCELLED — " + snap.Doc.Title
 	}
-	data, err := pdf.RenderInvoice(snap, s.logoFor(r.Context(), b.ID, snap.Seller.LogoID), copies, draft)
+	data, err := pdf.RenderInvoice(snap, s.logoFor(r.Context(), b.ID, snap.Seller.LogoID), draft)
 	if err != nil {
 		fail(w, r, err)
 		return

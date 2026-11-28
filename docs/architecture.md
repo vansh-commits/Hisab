@@ -206,7 +206,7 @@ sequenceDiagram
   - No storage used.
 - **₹ and fonts:** Noto Sans Regular/Bold TTF embedded via `embed` and loaded with `AddUTF8Font`. All amounts are formatted by `internal/inr` (`7,37,864.00`).
 - **Determinism:** `SetCreationDate` / `SetModificationDate` fixed to `issued_at`, and compression on. The template is a versioned function (`pdf.ClassicV1(snapshot)`) chosen by `snapshot.template.version`. A released version is never edited, and layout changes ship as `ClassicV2`. A test renders the same snapshot twice and asserts identical bytes, and keeps a golden SHA-256 for Bill A and Bill B.
-- **Copies:** one PDF with one set of pages per copy in `snapshot.settings.copies`. Each set is labelled top-right "ORIGINAL FOR RECIPIENT" / "DUPLICATE FOR TRANSPORTER" / "TRIPLICATE FOR SUPPLIER".
+- **Copies:** one PDF with one set of pages per copy in `snapshot.settings.copies`. Each set is labelled top-right with the shop-chosen label, e.g. "CUSTOMER COPY" / "STORE COPY".
 - **Response:** `Content-Type: application/pdf`, `Content-Disposition: inline; filename="SJ-26-27-0148.pdf"`, `Cache-Control: private, max-age=86400` (issued bills never change).
 - **Preview while drafting:** an HTML preview built from the `compute` response, with no PDF round-trip.
 - **Alternatives rejected:**

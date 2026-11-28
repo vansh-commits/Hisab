@@ -99,7 +99,7 @@ Onboarding uses **the same resource endpoints** as Settings. It only adds progre
 | `DELETE /api/invoices/{id}` | drafts only |
 | `POST /api/invoices/{id}/issue` | `{expected_grand_total_paise}` → number + snapshot. 409 `totals_mismatch` with server totals if they differ. |
 | `POST /api/invoices/{id}/cancel` | `{reason}` → issued → cancelled. 409 if non-voided non-old-gold payments exist (void them first). An exchange voucher is cancelled with it. |
-| `GET /api/invoices/{id}/pdf` | PDF built from the snapshot on every request (never stored). `?copies=original` optionally limits the copies. Drafts get a "DRAFT" watermark. |
+| `GET /api/invoices/{id}/pdf` | PDF built from the snapshot on every request (never stored). Drafts get a "DRAFT" watermark. |
 
 **Invoice input** (draft body, also the `compute` body)
 ```jsonc

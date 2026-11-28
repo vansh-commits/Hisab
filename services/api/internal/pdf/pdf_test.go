@@ -33,7 +33,7 @@ func sampleInvoice() Invoice {
 		Lines:     []Line{{SNo: 1, Description: "18K Jewellery", HSN: s("7113"), Purity: s("18K"), Unit: "g", GrossWeightMg: &g, QtyMilli: 250000, RatePaise: 950000, Making: &Making{Paise: 4750000}, TaxablePaise: 242250000, GSTRate: 3000}},
 		TaxGroups: []Group{{HSN: "7113", GSTRate: 3000, TaxablePaise: 242250000, CGSTPaise: 3633750, SGSTPaise: 3633750}},
 		Totals:    Totals{SupplyType: "intra", SGSTLabel: "SGST", TaxablePaise: 242250000, CGSTPaise: 3633750, SGSTPaise: 3633750, GrandTotalPaise: 249517500},
-		Settings:  Print{Copies: []string{"original", "duplicate"}, Terms: "Goods once sold will not be taken back. Subject to hallmark verification.", Declaration: "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.", Jurisdiction: "Subject to Faridabad jurisdiction", SignatoryName: "Vansh"},
+		Settings:  Print{Copies: []string{"Customer", "Store"}, Terms: "Goods once sold will not be taken back. Subject to hallmark verification.", Declaration: "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.", Jurisdiction: "Subject to Faridabad jurisdiction", SignatoryName: "Vansh"},
 		Words:     Words{GrandTotal: "Rupees Twenty-Four Lakh Ninety-Five Thousand One Hundred Seventy-Five Only", Tax: "Rupees Seventy-Two Thousand Six Hundred Seventy-Five Only"},
 		Notes:     "test bill generated",
 	}
@@ -41,15 +41,23 @@ func sampleInvoice() Invoice {
 
 // Set PDF_OUT=/path/x.pdf to eyeball the layout.
 func TestRenderInvoiceDeterministic(t *testing.T) {
-	a, err := RenderInvoice(sampleInvoice(), nil, nil, false)
+	a, err := RenderInvoice(sampleInvoice(), nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, _ := RenderInvoice(sampleInvoice(), nil, nil, false)
+	b, _ := RenderInvoice(sampleInvoice(), nil, false)
 	if !bytes.Equal(a, b) {
 		t.Fatal("same snapshot produced different PDF bytes")
 	}
 	if out := os.Getenv("PDF_OUT"); out != "" {
 		_ = os.WriteFile(out, a, 0o644)
+	}
+}
+
+func TestCopyTitle(t *testing.T) {
+	for in, want := range map[string]string{"Store": "STORE COPY", " Customer ": "CUSTOMER COPY", "Office copy": "OFFICE COPY", "original": "ORIGINAL — CUSTOMER COPY"} {
+		if got := copyTitle(in); got != want {
+			t.Errorf("copyTitle(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
